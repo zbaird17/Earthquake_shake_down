@@ -1,34 +1,18 @@
 ## Purpose
-An interactive 2D structural dynamics simulator for engineering students to design multi-story framed towers and test their ability to withstand earthquakes.
-
-## Scope
-The app is a single-page tool for designing 2D framed towers and testing them with horizontal sine-wave shaking. It is intended for conceptual engineering learning, not building-code certification.
-
-## User Workflow
-The app opens in design mode with a blank 1 ft grid.
-
-1. The user selects columns, beams, diagonal braces, or floor masses from the toolbar.
-2. The user places structural elements on the grid. Placement snaps to 1 ft grid lines and lengths are measured in feet.
-3. The user may select **Load Starter Tower** to replace the blank grid with a simple starter design. If a custom structure is already in place, loading the starter tower should require confirmation.
-4. The user sets the shake table's sine-wave amplitude and frequency.
-5. The user starts the test. While a test is running, the structure is fixed and cannot be edited.
-6. The app animates the shake table and tower, displaying stress states and structural failure.
-7. The test ends with a win after 10.0 seconds of survival, or with a failure if a floor mass reaches the ground or the structure collapses.
-8. The user may stop the test or clear the structure to return to design mode.
-
-## Initial State
-The app starts with no structural elements, floor masses, or starter tower. The blank canvas includes a 1 ft grid for placement and design.
-
-A clearly labeled **Load Starter Tower** control adds a simple default frame. It is optional, and it replaces the current structure only when the user activates it.
+An interactive 2D structural dynamics simulator for engineering students to design multi-story framed towers and test their ability to withstand horizontal sine-wave shaking. This is a single-page conceptual learning tool, not a building-code certification system.
 
 ## Inputs
 Structural Elements (Canvas Placement): Columns ($50/ft), beams ($40/ft), diagonal braces ($300/ft), and floor masses ($20/ft), placed via grid snapping.
 
-Grid Resolution: 1 ft between adjacent grid lines.
+Grid Resolution: The canvas has 1 ft grid lines, and placement snaps to those lines. Structural lengths are measured in feet.
 
 Shaking Controls: Shake table amplitude A and frequency f for a sine-wave test. Each value has a slider and a corresponding synchronized number box.
 
 Simulation Controls: Start/Stop Test button and Clear Structure button.
+
+The app opens in design mode with a blank grid and no structural elements or floor masses. The user selects a structural element, places it on the 1 ft grid, and may remove or revise the design before testing. A clearly labeled **Load Starter Tower** button replaces the blank design with a simple default frame; if a custom structure is already in place, loading the starter tower requires confirmation.
+
+The user sets the sine-wave amplitude and frequency, starts the test, and observes the shake table and tower. During testing, the structure cannot be edited. The user may stop the test manually or clear the structure to return to design mode.
 
 ## Calculations
 2D Rigid-Body Physics (Matter.js): Conversion scale of 

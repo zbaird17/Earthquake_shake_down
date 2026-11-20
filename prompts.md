@@ -75,3 +75,14 @@
   sine-wave controls. Strengthened the `AGENTS.md` instruction for prompt
   logging and added this request to `prompts.md`.
 - Worked: The documentation edits are complete and ready for review and commit.
+
+### Request 10
+
+- Asked: Keep the same seven headings in `spec.md` and arrange the approved
+  edits within those headings.
+- Changed: Consolidated the scope and workflow changes into the existing
+  Purpose, Inputs, Calculations, Outputs, Look and Feel, Validation, and
+  Out of Scope headings. Removed the added Scope, User Workflow, and
+  Initial State headings.
+- Worked: The spec retains exactly the original seven headings and is ready
+  for review and commit.
