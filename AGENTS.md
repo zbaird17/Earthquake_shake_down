@@ -1,5 +1,6 @@
 # AGENTS.md
-- After each request, add an entry to prompts.md: what I asked, what you changed, and whether it worked.
+- Always update prompts.md after each request with what I asked, what you changed, and whether it worked.
+- After finalizing each section of the spec or build and before moving on, make sure we commit what we have done
 
 ## Project layout
 

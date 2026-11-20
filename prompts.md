@@ -41,3 +41,37 @@
 - Changed: This entry and the earlier request entries are being appended to
   `prompts.md`.
 - Worked: This update was missing previously; it is being corrected now.
+
+### Request 6
+
+- Asked: Review the spec again in plan mode, without changing code or building
+  the app.
+- Changed: No repository files were changed. The existing spec was reviewed and
+  summarized at a high level.
+- Worked: Yes. The review identified missing workflow and scope structure.
+
+### Request 7
+
+- Asked: Plan the user workflow without building anything.
+- Changed: No repository files were changed. A workflow plan was added to the
+  session plan: design mode, ground-motion setup, test start, active test,
+  outcome, and post-test reset.
+- Worked: Yes. The workflow plan was presented for approval.
+
+### Request 8
+
+- Asked: Decide the initial structure and grid resolution.
+- Changed: No repository files were changed. The workflow plan was updated to
+  use a blank slate, a 1 ft grid, and an optional starter-tower button.
+- Worked: Yes. The blank-slate and 1 ft-grid decisions were recorded.
+
+### Request 9
+
+- Asked: Edit the spec for the approved workflow and initial-state decisions,
+  remove the specific earthquake requirement, keep user-selected amplitude and
+  frequency, and always update `prompts.md`.
+- Changed: Updated `spec.md` with scope, user workflow, blank initial state,
+  1 ft grid resolution, optional starter tower, and amplitude/frequency
+  sine-wave controls. Strengthened the `AGENTS.md` instruction for prompt
+  logging and added this request to `prompts.md`.
+- Worked: The documentation edits are complete and ready for review and commit.
