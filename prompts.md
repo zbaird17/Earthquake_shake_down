@@ -86,3 +86,10 @@
   Initial State headings.
 - Worked: The spec retains exactly the original seven headings and is ready
   for review and commit.
+
+### Request 11
+
+- Asked: Commit the spec heading-preservation changes.
+- Changed: Updated `prompts.md` to record this request.
+- Worked: The documentation changes had already been committed as `c2bd373`;
+  this prompt-log update will be committed separately.
