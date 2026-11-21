@@ -174,3 +174,13 @@
   interpretation, gravity switching, and test-state handling.
 - Worked: The review identified ambiguous defaults and editing behavior as the
   first priority.
+
+### Request 20
+
+- Asked: Resolve default gravity, default amplitude and frequency, element
+  selection/deletion/repositioning, and starter-tower replacement behavior.
+- Changed: Updated `spec.md` to default gravity to Earth, suggest 6 inches and
+  5 Hz as middle-range starting values, define click selection with mouse
+  repositioning and Delete-key removal, and specify that starter-tower loading
+  replaces the existing design.
+- Worked: The ambiguity decisions were documented in the spec.

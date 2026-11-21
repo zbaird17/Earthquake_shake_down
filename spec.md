@@ -8,13 +8,13 @@ Grid Resolution: The canvas has 1 ft grid lines, and placement snaps to those li
 
 Floor Masses: Floor masses may be placed freely at any grid point. Placement does not require a specific attachment location.
 
-Shaking Controls: Shake table amplitude A ranges from 0 to 12 inches, and frequency f ranges from 0.1 to 10 Hz for a sine-wave test. Each value has a slider and a corresponding synchronized number box.
+Shaking Controls: Shake table amplitude A ranges from 0 to 12 inches, and frequency f ranges from 0.1 to 10 Hz for a sine-wave test. Each value has a slider and a corresponding synchronized number box. Suggested starting values are 6 inches of amplitude and 5 Hz of frequency.
 
 Simulation Controls: Start/Stop Test button, Clear Structure button, and Load Starter Tower button.
 
-The app opens in design mode with a blank grid and no structural elements or floor masses. The user selects a structural element, places it on the 1 ft grid, and may remove or revise the design before testing. Invalid placements outside the canvas boundary are rejected or prevented.
+The app opens in design mode with a blank grid and no structural elements or floor masses. The user selects a structural element, places it on the 1 ft grid, and may revise the design before testing. A placed element is selected by clicking it. The user can reposition a selected element with the mouse or delete it with the Delete key. Invalid placements outside the canvas boundary are rejected or prevented.
 
-A clearly labeled **Load Starter Tower** button replaces the blank design with a simple default frame. If a custom structure is already in place, loading the starter tower requires confirmation.
+A clearly labeled **Load Starter Tower** button replaces the current design with a simple default frame.
 
 The user sets the sine-wave amplitude and frequency, starts the test, and observes the shake table and tower. During testing, the structure cannot be edited. The user may stop the test manually or clear the structure to return to design mode.
 
@@ -73,7 +73,6 @@ Acceptance Checks:
 - Clear Structure resets test readouts and returns the app to the initial blank state.
 - The Earth, Mars, and Moon gravity controls work and apply the specified backgrounds.
 - Desktop and mobile layouts remain usable and keep controls from obscuring the canvas.
-
 
 ## Out of Scope
 - Three-dimensional analysis, out-of-plane motion, and torsion.
