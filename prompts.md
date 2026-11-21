@@ -126,3 +126,13 @@
   `spec.md`. Added a final `## Features` section describing the bottom gravity
   control and Mars red/Moon grey backgrounds.
 - Worked: The Calculations and Features edits are complete and ready for commit.
+
+### Request 15
+
+- Asked: Review and clarify only the Outputs section, then edit it to match
+  the approved readout behavior.
+- Changed: Updated `## Outputs` with green/yellow/red joint states, live and
+  final cost/time/acceleration readouts, persistent successful-run High Score,
+  cleared test readouts, and explicit success/failure results.
+- Worked: The Outputs section was revised without changing or building other
+  application components.

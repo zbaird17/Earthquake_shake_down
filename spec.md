@@ -30,12 +30,19 @@ Joint Failure: If the force magnitude at any joint exceeds 15 kip, the associate
 Tower wins if it survives for 10.0 seconds without any floor mass colliding with the ground plane.
 
 ## Outputs
-Real-time animation of the tower, shake table motion, color-coded joint stress states, and structural collapse.
+Real-time animation shows the tower, shake table motion, joint stress states, structural collapse, and floor-mass ground collisions.
 
-Numerical Readouts: Total Cost ($)
-Elapsed Survival Time (s)
-Peak Ground Acceleration (g)
-High Score (g)
+Joints use green for normal stress, yellow for elevated stress, and red for failure.
+
+Numerical Readouts:
+- Total Cost ($): displayed continuously during design and testing.
+- Elapsed Survival Time (s): updated continuously during a test and retained as the final result afterward.
+- Peak Ground Acceleration (g): measured as the peak horizontal acceleration of the shake table, updated continuously during a test and retained afterward.
+- High Score (g): the highest Peak Ground Acceleration achieved by a successful tower.
+
+High Score is saved in browser local storage so it persists across visits. Failed runs do not update the High Score. Clearing the structure resets test readouts to the initial state.
+
+At the end of a run, the app shows an explicit success or failure result and includes the final elapsed survival time.
 
 ## Look and Feel
 A clean, single-page layout featuring a central interactive
