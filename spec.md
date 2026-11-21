@@ -82,3 +82,35 @@ Acceptance Checks:
 
 ## Features
 Place a gravity control at the bottom of the app for Earth, Mars, and Moon modes. Earth uses the default 32.2 ft/s² setting and appearance. Mars uses 12.21 ft/s² and changes the background to red. The Moon uses 5.33 ft/s² and changes the background to grey.
+
+## Build Stages
+
+### Stage 1: Page Mockup
+Create the responsive page layout without Matter.js or real calculations. Include the desktop canvas maximum of 600 × 500 px, left structural toolbar, collapsible sidebar, simulation controls, gravity control, and placeholder readouts.
+
+Test: Verify desktop and mobile layouts, toolbar placement, sidebar collapse, control usability, and that no layout change obscures the canvas.
+
+### Stage 2: Structure Placement
+Add 1 ft grid snapping and basic design editing. Support columns, beams, braces, floor masses, blank starting state, click selection, mouse repositioning, Delete-key removal, starter-tower replacement, and visible-canvas boundary validation.
+
+Test: Verify snapping, boundary limits, selection, repositioning, deletion, starter-tower replacement, and cost-independent placement behavior.
+
+### Stage 3: Costs and Controls
+Connect live cost calculations and input controls. Add the 0–12 inch amplitude range, 0.1–10 Hz frequency range, 6-inch and 5 Hz starting values, synchronized sliders and number boxes, and Earth/Mars/Moon gravity selection.
+
+Test: Verify element-cost arithmetic, control limits, synchronized inputs, default values, gravity changes, and required Mars red/Moon grey backgrounds.
+
+### Stage 4: Basic Physics and Shake Motion
+Add Matter.js and a basic shake table. Implement consistent unit conversion, Earth/Mars/Moon gravity, sine-wave displacement, tower and table animation, Start/Stop behavior, and editing locks during tests.
+
+Test: Calibrate 10 ft free-fall targets for Earth, Mars, and Moon. Measure 10 cycles and compare table period and extreme displacement with configured values.
+
+### Stage 5: Structural Failure and Outcomes
+Add the 15-kip joint-force threshold, green/yellow/red stress states, constraint breaking, structural collapse, floor-mass ground collision, 10-second survival, and explicit win/failure results.
+
+Test: Verify one successful 10-second run, one joint-failure run, one ground-collision run, and one manually stopped test.
+
+### Stage 6: Readouts, Persistence, and Polish
+Complete live Total Cost, elapsed time, peak table acceleration, local-storage High Score, Clear Structure reset behavior, mobile touch controls, and final visual polish.
+
+Test: Run the full acceptance checklist; verify successful-run-only High Score persistence across refreshes, failed-run behavior, Clear Structure reset, and desktop/mobile usability.

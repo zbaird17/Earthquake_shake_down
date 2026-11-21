@@ -201,3 +201,12 @@
 - Changed: No spec or application files were changed. A staged build-and-test
   plan was prepared for the response.
 - Worked: The planning request was fulfilled and no code was written.
+
+### Request 23
+
+- Asked: Add the staged implementation plan to `spec.md` under a new
+  `Build Stages` heading.
+- Changed: Added six build stages covering mockup, placement, costs and
+  controls, physics, outcomes, and persistence/polish. Included test checks for
+  each stage.
+- Worked: The Build Stages section was added without writing application code.
