@@ -281,3 +281,14 @@
 - Worked: Browser and direct interaction checks passed for snap-point
   detection, live brace preview, and brace creation between beam/column
   anchors.
+
+### Request 30
+
+- Asked: Align the ground/shake table and floor masses with the 1 ft grid,
+  allow floor-mass resizing, and preserve beam/column position when endpoint
+  length changes.
+- Changed: Added snapped table and responsive canvas height alignment,
+  a floor-mass resize handle with 1 ft snapping, and coordinate updates that
+  keep segment placement stable as endpoints change.
+- Worked: Browser checks passed for snapped table dimensions, grid-snapped
+  floor-mass placement and resizing, and fixed-axis segment endpoint changes.

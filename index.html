@@ -180,9 +180,9 @@
       left: 0;
       right: 0;
       bottom: 0;
-      height: 42px;
+      height: 40px;
       background: #5b7185;
-      border-top: 5px solid #3f5263;
+      border-top: 4px solid #3f5263;
     }
 
     .canvas-label {
@@ -261,12 +261,26 @@
     .placed-element.brace.left { transform: rotate(-45deg); }
 
     .placed-element.floor-mass {
-      width: 50px;
-      height: 24px;
+      width: 40px;
+      height: 20px;
       border: 3px solid #17233b;
       border-radius: 7px;
       background: #ffb703;
       box-shadow: 3px 3px 0 rgba(23, 35, 59, 0.18);
+    }
+
+    .mass-resize {
+      position: absolute;
+      right: -8px;
+      bottom: -8px;
+      z-index: 12;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #17233b;
+      border-radius: 4px;
+      background: #fff;
+      cursor: nwse-resize;
+      touch-action: none;
     }
 
     .segment-preview {
@@ -333,7 +347,7 @@
     .shake-table {
       position: absolute;
       left: 50%;
-      bottom: 28px;
+      bottom: 40px;
       width: 360px;
       height: 24px;
       z-index: 4;
@@ -785,6 +799,7 @@
     const canvas = document.getElementById("canvas");
     const designLayer = document.getElementById("designLayer");
     const emptyHint = document.getElementById("emptyHint");
+    const shakeTable = document.querySelector(".shake-table");
     const GRID = 20;
     let selectedTool = "Column";
     let selectedElement = null;
@@ -802,6 +817,23 @@
 
     function snap(value) {
       return Math.round(value / GRID) * GRID;
+    }
+
+    function alignShakeTable() {
+      if (!shakeTable || !canvas) return;
+      const desiredHeight = snap(Math.max(280, Math.min(500, canvas.clientWidth * 5 / 6)));
+      canvas.style.height = desiredHeight + "px";
+      const tableWidth = Math.min(360, snap(canvas.clientWidth));
+      const left = snap((canvas.clientWidth - tableWidth) / 2);
+      shakeTable.style.width = tableWidth + "px";
+      shakeTable.style.left = left + "px";
+      shakeTable.style.transform = "none";
+      shakeTable.style.bottom = "40px";
+    }
+
+    alignShakeTable();
+    if ("ResizeObserver" in window) {
+      new ResizeObserver(alignShakeTable).observe(canvas);
     }
 
     function updateEmptyHint() {
@@ -845,6 +877,15 @@
       element.style.top = position.y + "px";
       element.dataset.x = String(position.x);
       element.dataset.y = String(position.y);
+
+      if (type === "Floor mass") {
+        const resizeHandle = document.createElement("button");
+        resizeHandle.type = "button";
+        resizeHandle.className = "mass-resize";
+        resizeHandle.setAttribute("aria-label", "Resize floor mass");
+        element.appendChild(resizeHandle);
+        resizeHandle.addEventListener("pointerdown", (event) => resizeFloorMass(event, element));
+      }
 
       element.addPointerCapture?.(0);
       element.addEventListener("pointerdown", startDrag);
@@ -1114,6 +1155,40 @@
       return element;
     }
 
+    function resizeFloorMass(event, element) {
+      if (isTesting) return;
+      event.preventDefault();
+      event.stopPropagation();
+      selectElement(element);
+      const handle = event.currentTarget;
+      handle.setPointerCapture(event.pointerId);
+      const rect = element.getBoundingClientRect();
+      const startWidth = rect.width;
+      const startHeight = rect.height;
+      const startX = event.clientX;
+      const startY = event.clientY;
+
+      function move(moveEvent) {
+        const left = parseFloat(element.style.left) || 0;
+        const top = parseFloat(element.style.top) || 0;
+        const width = Math.max(GRID, snap(startWidth + moveEvent.clientX - startX));
+        const height = Math.max(GRID, snap(startHeight + moveEvent.clientY - startY));
+        element.style.width = Math.min(width, designLayer.clientWidth - left) + "px";
+        element.style.height = Math.min(height, designLayer.clientHeight - top) + "px";
+        statusLine.textContent = "Floor mass · " + (parseFloat(element.style.width) / GRID).toFixed(0) + " × " + (parseFloat(element.style.height) / GRID).toFixed(0) + " ft";
+      }
+
+      function end() {
+        handle.removeEventListener("pointermove", move);
+        handle.removeEventListener("pointerup", end);
+        handle.removeEventListener("pointercancel", end);
+      }
+
+      handle.addEventListener("pointermove", move);
+      handle.addEventListener("pointerup", end);
+      handle.addEventListener("pointercancel", end);
+    }
+
     function editSegmentEndpoint(event, element, endpoint) {
       if (isTesting) return;
       event.preventDefault();
@@ -1221,10 +1296,25 @@
           event.clientX - layerRect.left - offsetX,
           event.clientY - layerRect.top - offsetY
         );
+        const oldLeft = parseFloat(element.style.left) || 0;
+        const oldTop = parseFloat(element.style.top) || 0;
+        const dx = position.x - oldLeft;
+        const dy = position.y - oldTop;
         element.style.left = position.x + "px";
         element.style.top = position.y + "px";
         element.dataset.x = String(position.x);
         element.dataset.y = String(position.y);
+
+        if (element.dataset.tool === "Beam" || element.dataset.tool === "Column") {
+          const startX = Number(element.dataset.startX || 0);
+          const startY = Number(element.dataset.startY || 0);
+          const endX = Number(element.dataset.endX || 0);
+          const endY = Number(element.dataset.endY || 0);
+          element.dataset.startX = String(snap(startX + dx));
+          element.dataset.startY = String(snap(startY + dy));
+          element.dataset.endX = String(snap(endX + dx));
+          element.dataset.endY = String(snap(endY + dy));
+        }
       }
 
       function end() {
