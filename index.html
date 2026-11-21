@@ -269,6 +269,22 @@
       box-shadow: 3px 3px 0 rgba(23, 35, 59, 0.18);
     }
 
+    .segment-preview {
+      position: absolute;
+      z-index: 8;
+      height: 8px;
+      border: 2px dashed #2563eb;
+      border-radius: 4px;
+      background: rgba(37, 99, 235, 0.12);
+      pointer-events: none;
+      transform-origin: 0 50%;
+    }
+
+    .segment-preview.column {
+      width: 10px;
+      height: 8px;
+    }
+
     .empty-hint {
       position: absolute;
       left: 50%;
@@ -747,6 +763,8 @@
     let selectedElement = null;
     let isTesting = false;
     let braceDirection = "right";
+    let pendingSegment = null;
+    let segmentPreview = null;
 
     const elementSizes = {
       "Column": { width: 10, height: 60 },
@@ -760,7 +778,7 @@
     }
 
     function updateEmptyHint() {
-      emptyHint.hidden = designLayer.children.length > 0;
+      emptyHint.hidden = designLayer.querySelector(".placed-element") !== null;
     }
 
     function selectElement(element) {
@@ -813,6 +831,79 @@
       return element;
     }
 
+    function cancelPendingSegment() {
+      pendingSegment = null;
+      if (segmentPreview) {
+        segmentPreview.remove();
+        segmentPreview = null;
+      }
+    }
+
+    function updateSegmentPreview(x, y) {
+      if (!pendingSegment || !segmentPreview) return;
+      const start = pendingSegment;
+      let endX = snap(x);
+      let endY = snap(y);
+
+      if (selectedTool === "Column") endX = start.x;
+      if (selectedTool === "Beam") endY = start.y;
+
+      const dx = endX - start.x;
+      const dy = endY - start.y;
+      const length = Math.max(GRID, Math.hypot(dx, dy));
+      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+      segmentPreview.style.left = start.x + "px";
+      segmentPreview.style.top = (start.y - 4) + "px";
+      segmentPreview.style.width = length + "px";
+      segmentPreview.style.transform = "rotate(" + angle + "deg)";
+    }
+
+    function addSegment(type, start, end) {
+      if (isTesting) return null;
+      let startX = snap(start.x);
+      let startY = snap(start.y);
+      let endX = snap(end.x);
+      let endY = snap(end.y);
+
+      if (type === "Column") {
+        endX = startX;
+      } else {
+        endY = startY;
+      }
+
+      const dx = endX - startX;
+      const dy = endY - startY;
+      const length = Math.max(GRID, Math.hypot(dx, dy));
+      if (length <= GRID) return null;
+
+      const element = document.createElement("div");
+      element.className = "placed-element " + (type === "Column" ? "column" : "beam");
+      element.dataset.tool = type;
+      element.style.width = (type === "Column" ? 10 : length) + "px";
+      element.style.height = (type === "Column" ? length : 10) + "px";
+
+      if (type === "Beam") {
+        element.style.left = Math.min(startX, endX) + "px";
+        element.style.top = (startY - 5) + "px";
+      } else {
+        element.style.left = (startX - 5) + "px";
+        element.style.top = Math.min(startY, endY) + "px";
+      }
+
+      element.dataset.x = element.style.left;
+      element.dataset.y = element.style.top;
+      designLayer.appendChild(element);
+
+      element.addEventListener("pointerdown", startDrag);
+      element.addEventListener("click", (event) => {
+        event.stopPropagation();
+        selectElement(element);
+      });
+      selectElement(element);
+      updateEmptyHint();
+      return element;
+    }
+
     function startDrag(event) {
       if (isTesting) return;
       event.preventDefault();
@@ -850,6 +941,7 @@
 
     function clearStructure() {
       if (isTesting) return;
+      cancelPendingSegment();
       designLayer.replaceChildren();
       selectElement(null);
       updateEmptyHint();
@@ -863,14 +955,12 @@
       const left = centerX - 120;
       const right = centerX + 120;
       const bottom = designLayer.clientHeight - 90;
+      addSegment("Column", { x: left, y: bottom - 20 }, { x: left, y: bottom - 140 });
+      addSegment("Column", { x: right, y: bottom - 20 }, { x: right, y: bottom - 140 });
+      addSegment("Beam", { x: left, y: bottom - 20 }, { x: right, y: bottom - 20 });
+      addSegment("Beam", { x: left, y: bottom - 140 }, { x: right, y: bottom - 140 });
+      addSegment("Beam", { x: left, y: 60 }, { x: right, y: 60 });
       const positions = [
-        ["Column", left, bottom - 20],
-        ["Column", right, bottom - 20],
-        ["Column", left, bottom - 140],
-        ["Column", right, bottom - 140],
-        ["Beam", centerX, bottom - 20],
-        ["Beam", centerX, bottom - 140],
-        ["Beam", centerX, 60],
         ["Brace", centerX, bottom - 80, "right"],
         ["Brace", centerX, bottom - 80, "left"],
         ["Floor mass", centerX, bottom - 48],
@@ -899,6 +989,7 @@
     document.querySelectorAll(".tool").forEach((tool) => {
       tool.addEventListener("click", () => {
         if (isTesting) return;
+        cancelPendingSegment();
         document.querySelectorAll(".tool").forEach((item) => item.classList.remove("active"));
         tool.classList.add("active");
         selectedTool = tool.dataset.tool;
@@ -910,8 +1001,29 @@
       if (isTesting) return;
       if (event.target !== designLayer) return;
       const rect = designLayer.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
+      const x = snap(event.clientX - rect.left);
+      const y = snap(event.clientY - rect.top);
+
+      if (selectedTool === "Column" || selectedTool === "Beam") {
+        if (!pendingSegment) {
+          pendingSegment = { x, y };
+          segmentPreview = document.createElement("div");
+          segmentPreview.className = "segment-preview " + selectedTool.toLowerCase();
+          segmentPreview.style.left = x + "px";
+          segmentPreview.style.top = (y - 4) + "px";
+          segmentPreview.style.width = GRID + "px";
+          designLayer.appendChild(segmentPreview);
+          statusLine.textContent = "Design mode · Click end point for " + selectedTool.toLowerCase();
+        } else {
+          const element = addSegment(selectedTool, pendingSegment, { x, y });
+          cancelPendingSegment();
+          statusLine.textContent = element
+            ? "Design mode · " + selectedTool + " placed"
+            : "Design mode · Segment must be longer than 1 ft";
+        }
+        return;
+      }
+
       if (selectedTool === "Brace") {
         braceDirection = braceDirection === "right" ? "left" : "right";
       }
@@ -919,7 +1031,18 @@
       statusLine.textContent = "Design mode · " + selectedTool + " placed";
     });
 
+    designLayer.addEventListener("pointermove", (event) => {
+      if (!pendingSegment) return;
+      const rect = designLayer.getBoundingClientRect();
+      updateSegmentPreview(event.clientX - rect.left, event.clientY - rect.top);
+    });
+
     document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && pendingSegment) {
+        cancelPendingSegment();
+        statusLine.textContent = "Design mode · Placement cancelled";
+        return;
+      }
       if (isTesting || (event.key !== "Delete" && event.key !== "Backspace")) return;
       if (!selectedElement) return;
       const activeTag = document.activeElement?.tagName;
@@ -959,6 +1082,7 @@
 
     function setTesting(testing) {
       isTesting = testing;
+      if (testing) cancelPendingSegment();
       document.querySelectorAll(".tool").forEach((tool) => { tool.disabled = testing; });
       document.getElementById("starterBtn").disabled = testing;
       document.getElementById("starterTop").disabled = testing;

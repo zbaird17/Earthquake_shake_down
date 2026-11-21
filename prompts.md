@@ -251,3 +251,13 @@
   is built around the canvas center.
 - Worked: Yes. The responsive sizing and dynamic starter placement passed
   browser checks.
+
+### Request 27
+
+- Asked: Change beam and column placement from preset segments to two-click
+  start-and-end placement.
+- Changed: Updated `index.html` with pending segment preview, horizontal beam
+  endpoints, vertical column endpoints, Escape cancellation, and dynamic
+  starter-tower beam/column segments.
+- Worked: Browser checks passed for variable-length beam and column placement,
+  starter-tower loading, and segment status feedback.
