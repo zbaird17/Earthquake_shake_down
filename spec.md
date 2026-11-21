@@ -45,8 +45,13 @@ High Score is saved in browser local storage so it persists across visits. Faile
 At the end of a run, the app shows an explicit success or failure result and includes the final elapsed survival time.
 
 ## Look and Feel
-A clean, single-page layout featuring a central interactive
-600×500 px simulation canvas, a top toolbar for selecting structural members, and a collapsible sidebar for seismic parameters and readouts. On mobile viewports, the control panel stacks cleanly beneath the canvas with touch-friendly placement buttons.
+A playful classroom-simulator style and clean, single-page layout.
+
+A responsive simulation canvas supports a desktop maximum of 600 × 500 px. The structural-element toolbar is positioned on the left side of the canvas. The seismic-controls and readout sidebar is collapsible on both desktop and mobile viewports.
+
+On mobile viewports, the controls stack beneath the canvas. Placement controls remain touch-friendly, and controls must not obscure the canvas during testing.
+
+The interface provides clear active, disabled, hover, and failure states.
 
 ## Validation
 Free-Fall Calibration: a block starting 10ft off the ground should take .78811 seconds to fall to the ground

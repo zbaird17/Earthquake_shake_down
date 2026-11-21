@@ -136,3 +136,13 @@
   cleared test readouts, and explicit success/failure results.
 - Worked: The Outputs section was revised without changing or building other
   application components.
+
+### Request 16
+
+- Asked: Clarify only the Look and Feel section, plan the approved layout,
+  and update the spec when approved.
+- Changed: Updated `## Look and Feel` with a playful classroom style,
+  left-side structural toolbar, responsive 600 × 500 px maximum canvas,
+  collapsible sidebar, mobile stacked controls, and clear interface states.
+- Worked: The Look and Feel section was revised without changing or building
+  other application components.
