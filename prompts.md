@@ -375,3 +375,11 @@
   anchoring. Also clamped the live opposite-end preview.
 - Worked: Implementation updated and the app loaded in-browser with the ghost
   preview visible above the snap-grid table baseline.
+
+### Request 40
+
+- Asked: Make column placement start on the shake table and let the pointer
+  decide the column height upward to the top endpoint.
+- Changed: Updated the project spec before app implementation to require the
+  column base to be set on the table baseline with the top chosen afterward.
+- Worked: Spec change is complete and awaiting implementation and commit.
