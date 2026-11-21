@@ -184,3 +184,12 @@
   repositioning and Delete-key removal, and specify that starter-tower loading
   replaces the existing design.
 - Worked: The ambiguity decisions were documented in the spec.
+
+### Request 21
+
+- Asked: Determine whether any other spec improvements are needed before
+  implementation.
+- Changed: No spec changes were made. The full spec was reviewed for major
+  contradictions and missing requirements.
+- Worked: The spec is ready to build. Minor implementation choices such as exact
+  starter-tower geometry and internal unit scaling can be resolved while coding.
