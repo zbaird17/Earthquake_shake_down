@@ -355,12 +355,15 @@
       z-index: 10;
       width: 14px;
       height: 14px;
+      padding: 0;
+      box-sizing: border-box;
       border: 2px solid #17233b;
       border-radius: 50%;
       background: #fff;
       box-shadow: 0 1px 4px rgba(23, 35, 59, 0.25);
       cursor: crosshair;
       touch-action: none;
+      transform: translate(-50%, -50%);
     }
 
     .empty-hint {
@@ -946,10 +949,10 @@
       element.addEventListener("pointerdown", startDrag);
       element.addEventListener("click", (event) => {
         event.stopPropagation();
-        selectElement(element);
+        if (!selectedTool) selectElement(element);
       });
 
-      selectElement(element);
+      if (!selectedTool) selectElement(element);
       updateEmptyHint();
       return element;
     }
@@ -998,6 +1001,7 @@
         placementGhost.style.width = "72px";
         placementGhost.style.height = "8px";
         placementGhost.style.transform = "rotate(-45deg)";
+        placementGhost.style.transformOrigin = "0 50%";
         placementGhost.style.opacity = anchor ? "0.92" : "0.28";
       } else {
         placementGhost.style.width = "40px";
@@ -1011,34 +1015,48 @@
       let top;
 
       if (type === "Column") {
+        const columnPoint = snapStructuralNode(x, y);
         left = Math.max(
           0,
-          Math.min(designLayer.clientWidth - ghostWidth, snap(x) - ghostWidth / 2)
+          Math.min(designLayer.clientWidth - ghostWidth, columnPoint.x - ghostWidth / 2)
         );
       } else if (type === "Beam") {
+        const beamPoint = snapStructuralNode(x, y);
         left = Math.max(
           0,
-          Math.min(designLayer.clientWidth - ghostWidth, snap(x))
+          Math.min(designLayer.clientWidth - ghostWidth, beamPoint.x)
         );
       } else {
+        const braceAnchor = snapBracePoint(x, y);
         left = Math.max(
           0,
-          Math.min(designLayer.clientWidth - ghostWidth, snap(x - ghostWidth / 2))
+          Math.min(
+            designLayer.clientWidth - ghostWidth,
+            braceAnchor ? braceAnchor.x : snap(x)
+          )
         );
       }
 
       const tableTop = getTableBoundary();
       if (type === "Column") {
-        top = tableTop - ghostHeight;
-      } else if (type === "Beam") {
         top = Math.max(
           0,
-          Math.min(tableTop - ghostHeight, snap(y - ghostHeight / 2))
+          Math.min(tableTop - ghostHeight, snap(y) - ghostHeight)
+        );
+      } else if (type === "Beam") {
+        const beamPoint = snapStructuralNode(x, y);
+        top = Math.max(
+          0,
+          Math.min(tableTop - ghostHeight, beamPoint.y - ghostHeight / 2)
         );
       } else {
+        const braceAnchor = snapBracePoint(x, y);
         top = Math.max(
           0,
-          Math.min(tableTop - ghostHeight, snap(y - ghostHeight / 2))
+          Math.min(
+            tableTop - ghostHeight,
+            (braceAnchor ? braceAnchor.y : snap(y)) - ghostHeight / 2
+          )
         );
       }
 
@@ -1090,6 +1108,12 @@
         }
       });
       return nearest;
+    }
+
+    function snapStructuralNode(x, y) {
+      const snappedGrid = snapPlacementPoint(x, y);
+      const structuralPoint = snapBracePoint(snappedGrid.x, snappedGrid.y);
+      return structuralPoint || snappedGrid;
     }
 
     function handleBraceAnchor(x, y) {
@@ -1152,8 +1176,15 @@
 
       endX = Math.max(0, Math.min(designLayer.clientWidth, endX));
       endY = Math.max(0, Math.min(getTableBoundary(), endY));
-      if (selectedTool === "Column") endX = start.x;
-      if (selectedTool === "Beam") endY = start.y;
+      if (selectedTool === "Column") {
+        endX = start.x;
+        endY = snapStructuralNode(start.x, endY).y;
+      }
+      if (selectedTool === "Beam") {
+        const endNode = snapStructuralNode(endX, start.y);
+        endX = endNode.x;
+        endY = start.y;
+      }
 
       const dx = endX - start.x;
       const dy = endY - start.y;
@@ -1187,7 +1218,14 @@
 
       if (type === "Column") {
         endX = startX;
+        endY = snapStructuralNode(startX, endY).y;
       } else {
+        endY = startY;
+        const startNode = snapStructuralNode(startX, startY);
+        const endNode = snapStructuralNode(endX, startY);
+        startX = startNode.x;
+        startY = startNode.y;
+        endX = endNode.x;
         endY = startY;
       }
 
@@ -1234,15 +1272,15 @@
       startHandle.type = "button";
       startHandle.className = "endpoint start";
       startHandle.setAttribute("aria-label", "Edit start of " + type);
-      startHandle.style.left = "-7px";
-      startHandle.style.top = type === "Beam" ? "-2px" : "-7px";
+      startHandle.style.left = type === "Column" ? "50%" : "0";
+      startHandle.style.top = type === "Column" ? "0" : "50%";
 
       const endHandle = document.createElement("button");
       endHandle.type = "button";
       endHandle.className = "endpoint end";
       endHandle.setAttribute("aria-label", "Edit end of " + type);
-      endHandle.style.right = "-7px";
-      endHandle.style.bottom = type === "Column" ? "-7px" : "-2px";
+      endHandle.style.left = type === "Column" ? "50%" : "100%";
+      endHandle.style.top = type === "Column" ? "100%" : "50%";
 
       element.appendChild(startHandle);
       element.appendChild(endHandle);
@@ -1252,9 +1290,9 @@
       element.addEventListener("pointerdown", startDrag);
       element.addEventListener("click", (event) => {
         event.stopPropagation();
-        selectElement(element);
+        if (!selectedTool) selectElement(element);
       });
-      selectElement(element);
+      if (!selectedTool) selectElement(element);
       updateEmptyHint();
       return element;
     }
@@ -1292,13 +1330,32 @@
       label.style.transform = "translateX(-50%)";
       element.appendChild(label);
 
+      const startHandle = document.createElement("button");
+      startHandle.type = "button";
+      startHandle.className = "endpoint start";
+      startHandle.setAttribute("aria-label", "Edit start of Brace");
+      startHandle.style.left = "0";
+      startHandle.style.top = "50%";
+
+      const endHandle = document.createElement("button");
+      endHandle.type = "button";
+      endHandle.className = "endpoint end";
+      endHandle.setAttribute("aria-label", "Edit end of Brace");
+      endHandle.style.left = "100%";
+      endHandle.style.top = "50%";
+
+      element.appendChild(startHandle);
+      element.appendChild(endHandle);
+      startHandle.addEventListener("pointerdown", (event) => editSegmentEndpoint(event, element, "start"));
+      endHandle.addEventListener("pointerdown", (event) => editSegmentEndpoint(event, element, "end"));
+
       designLayer.appendChild(element);
       element.addEventListener("pointerdown", startDrag);
       element.addEventListener("click", (event) => {
         event.stopPropagation();
-        selectElement(element);
+        if (!selectedTool) selectElement(element);
       });
-      selectElement(element);
+      if (!selectedTool) selectElement(element);
       updateEmptyHint();
       return element;
     }
@@ -1307,7 +1364,7 @@
       if (isTesting) return;
       event.preventDefault();
       event.stopPropagation();
-      selectElement(element);
+      if (!selectedTool) selectElement(element);
       const handle = event.currentTarget;
       handle.setPointerCapture(event.pointerId);
       const rect = element.getBoundingClientRect();
@@ -1341,24 +1398,38 @@
       if (isTesting) return;
       event.preventDefault();
       event.stopPropagation();
-      selectElement(element);
+      if (!selectedTool) selectElement(element);
       const handle = event.currentTarget;
       handle.setPointerCapture(event.pointerId);
       const type = element.dataset.tool;
 
       function move(moveEvent) {
         const rect = designLayer.getBoundingClientRect();
-        const point = {
-          x: snap(moveEvent.clientX - rect.left),
-          y: snap(moveEvent.clientY - rect.top)
-        };
+        const point =
+          type === "Brace"
+            ? snapStructuralNode(
+                moveEvent.clientX - rect.left,
+                moveEvent.clientY - rect.top
+              )
+            : {
+                x: snap(moveEvent.clientX - rect.left),
+                y: snap(moveEvent.clientY - rect.top)
+              };
 
         let startX = Number(element.dataset.startX);
         let startY = Number(element.dataset.startY);
         let endX = Number(element.dataset.endX);
         let endY = Number(element.dataset.endY);
 
-        if (type === "Beam") {
+        if (type === "Brace") {
+          if (endpoint === "start") {
+            startX = point.x;
+            startY = point.y;
+          } else {
+            endX = point.x;
+            endY = point.y;
+          }
+        } else if (type === "Beam") {
           if (endpoint === "start") startX = point.x;
           else endX = point.x;
           startY = snap(startY);
@@ -1386,8 +1457,22 @@
         element.dataset.startY = String(startY);
         element.dataset.endX = String(endX);
         element.dataset.endY = String(endY);
+        const label = element.querySelector(".segment-length");
 
-        if (type === "Beam") {
+        if (type === "Brace") {
+          const braceDx = endX - startX;
+          const braceDy = endY - startY;
+          const braceLength = Math.hypot(braceDx, braceDy);
+          const braceAngle = Math.atan2(braceDy, braceDx) * 180 / Math.PI;
+          element.style.left = startX + "px";
+          element.style.top = (startY - 4) + "px";
+          element.style.width = braceLength + "px";
+          element.style.height = "8px";
+          element.style.transform = "rotate(" + braceAngle + "deg)";
+          element.style.transformOrigin = "0 50%";
+          if (label) label.textContent = (braceLength / GRID).toFixed(1) + " ft";
+          statusLine.textContent = "Brace length · " + (braceLength / GRID).toFixed(1) + " ft";
+        } else if (type === "Beam") {
           element.style.left = Math.min(startX, endX) + "px";
           element.style.top = (startY >= tableTop ? tableTop - 10 : startY - 5) + "px";
           element.style.width = length + "px";
@@ -1399,8 +1484,7 @@
           element.style.height = length + "px";
         }
 
-        const label = element.querySelector(".segment-length");
-        if (label) label.textContent = (length / GRID).toFixed(0) + " ft";
+        if (label && type !== "Brace") label.textContent = (length / GRID).toFixed(0) + " ft";
         statusLine.textContent = type + " length · " + (length / GRID).toFixed(0) + " ft";
       }
 
@@ -1417,6 +1501,47 @@
 
     function startDrag(event) {
       if (isTesting) return;
+      if (event.target.classList?.contains("endpoint")) return;
+      if (selectedTool) {
+        event.preventDefault();
+        event.stopPropagation();
+        selectElement(null);
+        const rect = designLayer.getBoundingClientRect();
+        const point = snapStructuralNode(
+          event.clientX - rect.left,
+          event.clientY - rect.top
+        );
+
+        if (selectedTool === "Brace") {
+          handleBraceAnchor(point.x, point.y);
+          return;
+        }
+
+        if (selectedTool === "Column" || selectedTool === "Beam") {
+          if (!pendingSegment) {
+            pendingSegment = {
+              x: point.x,
+              y: selectedTool === "Column" ? point.y : point.y
+            };
+            segmentPreview = document.createElement("div");
+            segmentPreview.className = "segment-preview " + selectedTool.toLowerCase();
+            segmentPreview.style.left = (selectedTool === "Column" ? point.x - 5 : point.x) + "px";
+            segmentPreview.style.top = (selectedTool === "Column" ? point.y : point.y - 4) + "px";
+            segmentPreview.style.width = selectedTool === "Column" ? "10px" : GRID + "px";
+            segmentPreview.style.height = selectedTool === "Column" ? GRID + "px" : "8px";
+            designLayer.appendChild(segmentPreview);
+            removePlacementGhost();
+            statusLine.textContent = "Design mode · Click end point for " + selectedTool.toLowerCase();
+          } else {
+            const element = addSegment(selectedTool, pendingSegment, point);
+            cancelPendingSegment();
+            statusLine.textContent = element
+              ? "Design mode · " + selectedTool + " placed"
+              : "Design mode · Segment must be longer than 1 ft";
+          }
+        }
+        return;
+      }
       if (selectedTool === "Brace") {
         if (event.target.closest(".placed-element.column, .placed-element.beam")) {
           event.preventDefault();
@@ -1525,6 +1650,55 @@
     bindRangeAndNumber("amplitudeRange", "amplitudeNumber");
     bindRangeAndNumber("frequencyRange", "frequencyNumber");
 
+    function handleNodePlacementClick(event) {
+      if (!selectedTool || isTesting) return false;
+      const rect = designLayer.getBoundingClientRect();
+      const point = snapStructuralNode(
+        event.clientX - rect.left,
+        event.clientY - rect.top
+      );
+      event.preventDefault();
+      event.stopPropagation();
+      selectElement(null);
+
+      if (selectedTool === "Brace") {
+        handleBraceAnchor(point.x, point.y);
+        return true;
+      }
+
+      if (selectedTool === "Column" || selectedTool === "Beam") {
+        if (!pendingSegment) {
+          pendingSegment =
+            selectedTool === "Column"
+              ? { x: point.x, y: point.y }
+              : { x: point.x, y: point.y };
+          segmentPreview = document.createElement("div");
+          segmentPreview.className = "segment-preview " + selectedTool.toLowerCase();
+          segmentPreview.style.left = (selectedTool === "Column" ? point.x - 5 : point.x) + "px";
+          segmentPreview.style.top = (selectedTool === "Column" ? point.y : point.y - 4) + "px";
+          segmentPreview.style.width = selectedTool === "Column" ? "10px" : GRID + "px";
+          segmentPreview.style.height = selectedTool === "Column" ? GRID + "px" : "8px";
+          designLayer.appendChild(segmentPreview);
+          removePlacementGhost();
+          statusLine.textContent = "Design mode · Click end point for " + selectedTool.toLowerCase();
+        } else {
+          const element = addSegment(selectedTool, pendingSegment, point);
+          cancelPendingSegment();
+          statusLine.textContent = element
+            ? "Design mode · " + selectedTool + " placed"
+            : "Design mode · Segment must be longer than 1 ft";
+        }
+        return true;
+      }
+      return false;
+    }
+
+    designLayer.addEventListener("pointerdown", (event) => {
+      if (!selectedTool || isTesting) return;
+      const member = event.target.closest(".placed-element");
+      if (member) handleNodePlacementClick(event);
+    }, true);
+
     document.querySelectorAll(".tool").forEach((tool) => {
       tool.addEventListener("click", () => {
         if (isTesting) return;
@@ -1533,6 +1707,7 @@
         document.querySelectorAll(".tool").forEach((item) => item.classList.remove("active"));
         tool.classList.add("active");
         selectedTool = tool.dataset.tool;
+        selectElement(null);
         statusLine.textContent = "Design mode · " + tool.dataset.tool + " selected";
       });
     });
@@ -1551,13 +1726,18 @@
         event.clientY - rect.top
       );
       const rawX = placementPoint.x;
-      const rawY = selectedTool === "Column" && !pendingSegment
-        ? getTableBoundary()
-        : placementPoint.y;
+      const rawY = placementPoint.y;
+      const snappedPoint = snapStructuralNode(
+        rawX,
+        selectedTool === "Beam" ? rawY : rawY
+      );
 
       if (selectedTool === "Column" || selectedTool === "Beam") {
         if (!pendingSegment) {
-          pendingSegment = { x: rawX, y: rawY };
+          pendingSegment =
+            selectedTool === "Beam"
+              ? snappedPoint
+              : { x: snappedPoint.x, y: rawY };
           segmentPreview = document.createElement("div");
           segmentPreview.className = "segment-preview " + selectedTool.toLowerCase();
           segmentPreview.style.left = rawX + "px";
@@ -1602,9 +1782,13 @@
     shakeTable.addEventListener("pointermove", (event) => {
       if (!pendingSegment && selectedTool === "Column" && !isTesting) {
         const rect = designLayer.getBoundingClientRect();
+        const tablePoint = snapStructuralNode(
+          event.clientX - rect.left,
+          getTableBoundary()
+        );
         showPlacementGhost(
           "Column",
-          snap(event.clientX - rect.left),
+          tablePoint.x,
           getTableBoundary()
         );
       }
@@ -1615,7 +1799,10 @@
     shakeTable.addEventListener("pointerdown", (event) => {
       if (isTesting || selectedTool !== "Column" || pendingSegment) return;
       const rect = designLayer.getBoundingClientRect();
-      const x = snap(event.clientX - rect.left);
+      const x = snapStructuralNode(
+        event.clientX - rect.left,
+        getTableBoundary()
+      ).x;
       pendingSegment = { x, y: getTableBoundary() };
       segmentPreview = document.createElement("div");
       segmentPreview.className = "segment-preview column";
@@ -1635,7 +1822,7 @@
         selectElement(null);
         selectedTool = null;
         document.querySelectorAll(".tool").forEach((item) => item.classList.remove("active"));
-        statusLine.textContent = "Design mode · Selection cleared";
+        statusLine.textContent = "Design mode · Placement tool off · Click a member to select";
         return;
       }
       if (isTesting || (event.key !== "Delete" && event.key !== "Backspace")) return;

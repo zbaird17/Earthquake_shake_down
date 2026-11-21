@@ -395,3 +395,125 @@
   table starts column placement, plus table-hover feedback for the column ghost.
 - Worked: Browser reload completed and the top-point dispatch placed a column
   upward from the table baseline.
+
+### Request 42
+
+- Asked: Stop committing feature work until each feature is finalized and
+  approved, and do not commit Stage 2 until the project moves on to Stage 3.
+- Changed: Updated `AGENTS.md` and `prompts.md` to require explicit approval
+  before feature or build commits, and to hold Stage 2 until the move to
+  Stage 3 is approved.
+- Worked: The workflow change is now reflected in the project instructions.
+
+### Request 43
+
+- Asked: Make structural members connect and snap at nodes, while allowing beams
+  to be placed at higher elevations instead of only on the table.
+- Changed: Updated the project spec to require shared-node attachment,
+  node/grid snapping, and unconstrained snapped beam heights.
+- Changed again: Added structural-node snapping for beam and column endpoints,
+  shared-node lookup through existing column and beam segments, and unrestricted
+  1 ft-height beam placement.
+- Worked: Browser testing placed a 10 ft beam at a 200 px elevated grid height
+  and confirmed it did not remain attached to the table baseline.
+
+### Request 44
+
+- Asked: Allow braces to change angle and stretch by moving each endpoint to
+  connect to two other structural members.
+- Changed: Updated the project spec to require selected brace endpoints to
+  move independently to snapped column or beam nodes, with live rotation and
+  length changes.
+- Worked: Spec change is complete and awaiting implementation.
+
+### Request 45
+
+- Asked: Implement adjustable brace endpoints after updating the spec.
+- Changed: Added brace endpoint handles, node snapping during endpoint edits,
+  and live brace rotation, stretching, position updates, and length readouts.
+- Worked: Browser verification passed. A brace endpoint moved to an existing
+  structural node, changed from 13.4 ft to 17.0 ft, and rotated from -26.6°
+  to -45° without runtime errors.
+
+### Request 46
+
+- Asked: Fix off-center, asymmetric dots at the ends of structural members.
+- Changed: Centered all beam, column, and brace endpoint handles using exact
+  50% offsets and a shared -50% transform, and removed member-specific corner
+  offsets that shifted the dots asymmetrically.
+- Worked: Browser screenshot confirmed symmetric centered dots on the starter
+  tower beams, columns, and braces.
+
+
+### Request 47
+
+- Asked: Allow columns to begin at upper levels instead of being restricted to
+  the shake-table ground.
+- Changed: Updated the project spec to require column placement at any snapped
+  grid height or structural node, with the second click selecting the upper
+  endpoint.
+- Worked: Spec change is complete and awaiting implementation.
+
+### Request 48
+
+- Asked: Make brace ghosts start at the selected node/corner and span toward
+  the second click, and keep columns available at upper levels.
+- Changed: Updated the project spec and app preview anchoring so brace ghosts
+  use a node-aligned start and 0° transform-origin, while column ghosts begin
+  at the clicked snapped height and extend upward.
+- Worked: Implementation completed; direct browser geometry verification
+  showed existing selection state was interrupted, so final visual approval
+  remains with the user.
+
+### Request 49
+
+- Asked: Allow a new member to start at the corner of an existing member without
+  selecting or dragging the existing member.
+- Changed: Updated the project spec and added placement-mode interception in
+  member pointer handling, so clicking a member body or corner with an active
+  structural tool snaps and starts a new segment at that node.
+- Changed again: Suppressed existing-member click-selection while a placement
+  tool is active, so placement clicks no longer leave that member selected.
+- Worked: Browser verification revealed that previously selected members could
+  remain visually selected. Updated tool activation and placement clicks to
+  explicitly clear existing-member selection.
+- Worked again: Reload browser test confirmed a pending beam preview starts on
+  an existing column with zero `.selected` members.
+
+### Request 50
+
+- Asked: Fix the remaining case where trying to place a column selects an
+  existing brace.
+- Changed: Added capture-level clearing when placement clicks pass through
+  existing members, and guarded endpoint and creation selection paths so braces
+  cannot become selected during active structural placement.
+- Worked: Browser verification passed: clicking an existing brace while placing
+  a column left the selected-member list empty and created a pending column
+  preview.
+
+### Request 51
+
+- Asked: Add Escape behavior that deactivates placement mode so existing
+  members can be selected normally.
+- Changed: Updated the spec and confirmed Escape clears pending placement,
+  removes the active tool, clears tool highlighting and selection, and shows
+  a clear placement-off status.
+- Worked: Browser verification passed; Escape cleared placement mode and a
+  subsequent Brace click selected the Brace normally.
+
+### Request 52
+
+- Asked: Fix node clicks so placement recognizes and starts on a structural
+  node instead of selecting the existing member.
+- Changed: Added a centralized capture-phase node-placement handler for clicks
+  on existing placed members, with shared handling for column, beam, brace,
+  pointer snapping, and pending placement state.
+- Worked: Browser verification passed. Clicking a brace with Column selected
+  created a pending column preview at the snapped node and selected no member.
+
+### Request 53
+
+- Asked: Confirm that node-click placement was now working as required.
+- Changed: No application or spec files were changed. Recorded that the
+  browser-tested node placement behavior was approved.
+- Worked: Yes. The user confirmed the fix and node placement behavior.
