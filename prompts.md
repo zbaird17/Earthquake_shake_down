@@ -303,3 +303,12 @@
   tools/members.
 - Worked: Browser checks passed for table/structural-area alignment and Escape
   clearing tools, pending segments, and selected members.
+
+### Request 32
+
+- Asked: Make spec updates mandatory before application-code changes.
+- Changed: Added a spec-first rule to `AGENTS.md`. Updated `spec.md` to record
+  the shake-table bottom boundary, Escape deselection/cancellation behavior,
+  and the rule that structural members cannot extend below the table.
+- Worked: The process and recently implemented boundary behavior are now
+  documented before future app changes.

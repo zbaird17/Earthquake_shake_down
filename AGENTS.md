@@ -1,6 +1,7 @@
 # AGENTS.md
 - Always update prompts.md after each request with what I asked, what you changed, and whether it worked.
-- After finalizing each section of the spec or build and before moving on, make sure we commit what we have done
+- Before changing application code for a spec-based feature, first update spec.md to reflect the agreed behavior. Do not implement spec changes and app changes in the same turn unless the app change is purely verification or correction of that already-updated spec.
+- After finalizing each section of the spec or build and before moving on, make sure we commit what we have done. Wait until that section or stage is finalized before commiting.
 
 ## Project layout
 

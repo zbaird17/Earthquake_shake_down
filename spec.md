@@ -12,7 +12,7 @@ Shaking Controls: Shake table amplitude A ranges from 0 to 12 inches, and freque
 
 Simulation Controls: Start/Stop Test button, Clear Structure button, and Load Starter Tower button.
 
-The app opens in design mode with a blank grid and no structural elements or floor masses. The user selects a structural element, places it on the 1 ft grid, and may revise the design before testing. A placed element is selected by clicking it. The user can reposition a selected element with the mouse or delete it with the Delete key. Invalid placements outside the canvas boundary are rejected or prevented.
+The app opens in design mode with a blank grid and no structural elements or floor masses. The user selects a structural element, places it on the 1 ft grid, and may revise the design before testing. A placed element is selected by clicking it. The user can reposition a selected element with the mouse or delete it with the Delete key. Escape deselects the active member and cancels pending placement. Invalid placements outside the canvas boundary or below the shake table are rejected or prevented.
 
 A clearly labeled **Load Starter Tower** button replaces the current design with a simple default frame.
 
@@ -48,6 +48,8 @@ At the end of a run, the app shows an explicit success or failure result and inc
 A playful classroom-simulator style and clean, single-page layout.
 
 A responsive simulation canvas supports a desktop maximum of 600 × 500 px. The structural-element toolbar is positioned on the left side of the canvas. The seismic-controls and readout sidebar is collapsible on both desktop and mobile viewports.
+
+The shake table occupies the bottom of the canvas and is aligned exactly with the bottom snap-grid line. Structural members and floor masses cannot be placed below the shake table.
 
 On mobile viewports, the controls stack beneath the canvas. Placement controls remain touch-friendly, and controls must not obscure the canvas during testing.
 
@@ -91,7 +93,7 @@ Create the responsive page layout without Matter.js or real calculations. Includ
 Test: Verify desktop and mobile layouts, toolbar placement, sidebar collapse, control usability, and that no layout change obscures the canvas.
 
 ### Stage 2: Structure Placement
-Add 1 ft grid snapping and basic design editing. Support columns, beams, braces, floor masses, blank starting state, click selection, mouse repositioning, Delete-key removal, starter-tower replacement, and visible-canvas boundary validation.
+Add 1 ft grid snapping and basic design editing. Support columns, beams, braces, floor masses, blank starting state, click selection, mouse repositioning, Delete-key removal, Escape deselection and placement cancellation, starter-tower replacement, and visible-canvas boundary validation. Keep the shake table on the bottom snap-grid line and prevent structural members or masses from extending below it.
 
 Test: Verify snapping, boundary limits, selection, repositioning, deletion, starter-tower replacement, and cost-independent placement behavior.
 
