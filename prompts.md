@@ -261,3 +261,13 @@
   starter-tower beam/column segments.
 - Worked: Browser checks passed for variable-length beam and column placement,
   starter-tower loading, and segment status feedback.
+
+### Request 28
+
+- Asked: Allow beam and column length to be edited after placement and show
+  the segment preview following the mouse during placement.
+- Changed: Updated `index.html` with mouse-following segment previews,
+  displayed live length labels, and draggable start/end handles on placed
+  beams and columns.
+- Worked: Browser checks passed for live beam and column previews, placed
+  segment length labels, and dragging endpoint handles to resize both types.

@@ -283,6 +283,33 @@
     .segment-preview.column {
       width: 10px;
       height: 8px;
+      transform-origin: 50% 0;
+    }
+
+    .segment-length {
+      position: absolute;
+      z-index: 9;
+      padding: 2px 5px;
+      border-radius: 6px;
+      background: rgba(23, 35, 59, 0.88);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .endpoint {
+      position: absolute;
+      z-index: 10;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #17233b;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(23, 35, 59, 0.25);
+      cursor: crosshair;
+      touch-action: none;
     }
 
     .empty-hint {
@@ -851,11 +878,24 @@
       const dx = endX - start.x;
       const dy = endY - start.y;
       const length = Math.max(GRID, Math.hypot(dx, dy));
-      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-      segmentPreview.style.left = start.x + "px";
-      segmentPreview.style.top = (start.y - 4) + "px";
-      segmentPreview.style.width = length + "px";
-      segmentPreview.style.transform = "rotate(" + angle + "deg)";
+      segmentPreview.className = "segment-preview " + selectedTool.toLowerCase();
+
+      if (selectedTool === "Column") {
+        segmentPreview.style.left = (start.x - 5) + "px";
+        segmentPreview.style.top = Math.min(start.y, endY) + "px";
+        segmentPreview.style.width = "10px";
+        segmentPreview.style.height = length + "px";
+        segmentPreview.style.transform = "none";
+      } else {
+        segmentPreview.style.left = Math.min(start.x, endX) + "px";
+        segmentPreview.style.top = (start.y - 4) + "px";
+        segmentPreview.style.width = length + "px";
+        segmentPreview.style.height = "8px";
+        segmentPreview.style.transform = "none";
+      }
+
+      const feet = length / GRID;
+      statusLine.textContent = selectedTool + " preview · " + feet.toFixed(0) + " ft";
     }
 
     function addSegment(type, start, end) {
@@ -892,7 +932,38 @@
 
       element.dataset.x = element.style.left;
       element.dataset.y = element.style.top;
+      element.dataset.startX = String(startX);
+      element.dataset.startY = String(startY);
+      element.dataset.endX = String(endX);
+      element.dataset.endY = String(endY);
       designLayer.appendChild(element);
+
+      const label = document.createElement("span");
+      label.className = "segment-length";
+      label.textContent = (length / GRID).toFixed(0) + " ft";
+      label.style.left = type === "Beam" ? "50%" : "12px";
+      label.style.top = type === "Beam" ? "-18px" : "50%";
+      label.style.transform = type === "Beam" ? "translateX(-50%)" : "translateY(-50%)";
+      element.appendChild(label);
+
+      const startHandle = document.createElement("button");
+      startHandle.type = "button";
+      startHandle.className = "endpoint start";
+      startHandle.setAttribute("aria-label", "Edit start of " + type);
+      startHandle.style.left = "-7px";
+      startHandle.style.top = type === "Beam" ? "-2px" : "-7px";
+
+      const endHandle = document.createElement("button");
+      endHandle.type = "button";
+      endHandle.className = "endpoint end";
+      endHandle.setAttribute("aria-label", "Edit end of " + type);
+      endHandle.style.right = "-7px";
+      endHandle.style.bottom = type === "Column" ? "-7px" : "-2px";
+
+      element.appendChild(startHandle);
+      element.appendChild(endHandle);
+      startHandle.addEventListener("pointerdown", (event) => editSegmentEndpoint(event, element, "start"));
+      endHandle.addEventListener("pointerdown", (event) => editSegmentEndpoint(event, element, "end"));
 
       element.addEventListener("pointerdown", startDrag);
       element.addEventListener("click", (event) => {
@@ -904,8 +975,86 @@
       return element;
     }
 
+    function editSegmentEndpoint(event, element, endpoint) {
+      if (isTesting) return;
+      event.preventDefault();
+      event.stopPropagation();
+      selectElement(element);
+      const handle = event.currentTarget;
+      handle.setPointerCapture(event.pointerId);
+      const type = element.dataset.tool;
+
+      function move(moveEvent) {
+        const rect = designLayer.getBoundingClientRect();
+        const point = {
+          x: snap(moveEvent.clientX - rect.left),
+          y: snap(moveEvent.clientY - rect.top)
+        };
+
+        let startX = Number(element.dataset.startX);
+        let startY = Number(element.dataset.startY);
+        let endX = Number(element.dataset.endX);
+        let endY = Number(element.dataset.endY);
+
+        if (type === "Beam") {
+          if (endpoint === "start") startX = point.x;
+          else endX = point.x;
+          startY = snap(startY);
+          endY = startY;
+        } else {
+          if (endpoint === "start") startY = point.y;
+          else endY = point.y;
+          startX = snap(startX);
+          endX = startX;
+        }
+
+        startX = Math.max(0, Math.min(designLayer.clientWidth - (type === "Column" ? 10 : 0), startX));
+        endX = Math.max(0, Math.min(designLayer.clientWidth - (type === "Column" ? 10 : 0), endX));
+        startY = Math.max(0, Math.min(designLayer.clientHeight, startY));
+        endY = Math.max(0, Math.min(designLayer.clientHeight, endY));
+
+        const dx = endX - startX;
+        const dy = endY - startY;
+        const length = Math.max(GRID, Math.hypot(dx, dy));
+
+        if (length <= GRID) return;
+
+        element.dataset.startX = String(startX);
+        element.dataset.startY = String(startY);
+        element.dataset.endX = String(endX);
+        element.dataset.endY = String(endY);
+
+        if (type === "Beam") {
+          element.style.left = Math.min(startX, endX) + "px";
+          element.style.top = (startY - 5) + "px";
+          element.style.width = length + "px";
+          element.style.height = "10px";
+        } else {
+          element.style.left = (startX - 5) + "px";
+          element.style.top = Math.min(startY, endY) + "px";
+          element.style.width = "10px";
+          element.style.height = length + "px";
+        }
+
+        const label = element.querySelector(".segment-length");
+        if (label) label.textContent = (length / GRID).toFixed(0) + " ft";
+        statusLine.textContent = type + " length · " + (length / GRID).toFixed(0) + " ft";
+      }
+
+      function end() {
+        handle.removeEventListener("pointermove", move);
+        handle.removeEventListener("pointerup", end);
+        handle.removeEventListener("pointercancel", end);
+      }
+
+      handle.addEventListener("pointermove", move);
+      handle.addEventListener("pointerup", end);
+      handle.addEventListener("pointercancel", end);
+    }
+
     function startDrag(event) {
       if (isTesting) return;
+      if (event.target.classList?.contains("endpoint")) return;
       event.preventDefault();
       event.stopPropagation();
       const element = event.currentTarget;
