@@ -1,5 +1,5 @@
 ## Purpose
-An interactive 2D structural dynamics simulator for engineering students to design multi-story framed towers and test their ability to withstand horizontal sine-wave shaking. This is a single-page conceptual learning tool, not a building-code certification system.
+An interactive 2D structural-dynamics learning tool for engineering students to design multi-story framed towers, compare structural choices and construction costs, and observe their approximate response to user-selected horizontal sine-wave shaking. The app supports conceptual instruction and design exploration rather than formal structural analysis or building-code certification.
 
 ## Inputs
 Structural Elements (Canvas Placement): Columns ($50/ft), beams ($40/ft), diagonal braces ($300/ft), and floor masses ($20/ft), placed via grid snapping.

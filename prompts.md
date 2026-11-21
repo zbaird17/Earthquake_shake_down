@@ -93,3 +93,16 @@
 - Changed: Updated `prompts.md` to record this request.
 - Worked: The documentation changes had already been committed as `c2bd373`;
   this prompt-log update will be committed separately.
+
+### Request 12
+
+- Asked: Work only on the Purpose section of `spec.md`, identify unclear
+  requirements, and expand the purpose based on the approved audience and
+  learning goals.
+- Changed: Updated the Purpose text to describe the app as an instructional
+  design tool for engineering students comparing tower designs and costs under
+  approximate sine-wave shaking. Clarified that it supports conceptual
+  learning and is not for formal structural analysis or building-code
+  certification.
+- Worked: The Purpose section was revised without changing or building other
+  app components.
