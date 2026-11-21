@@ -54,8 +54,25 @@ On mobile viewports, the controls stack beneath the canvas. Placement controls r
 The interface provides clear active, disabled, hover, and failure states.
 
 ## Validation
-Free-Fall Calibration: a block starting 10ft off the ground should take .78811 seconds to fall to the ground
-Measure the table's motion from the animation (the time for 10 cycles and the distance between the extremes) and compare it to the frequency and amplitude set.
+Free-Fall Calibration: a block starting 10 ft above the ground is calibrated for each gravity mode:
+- Earth at 32.2 ft/s²: 0.78811 seconds
+- Mars at 12.21 ft/s²: 1.2798 seconds
+- Moon at 5.33 ft/s²: 1.9371 seconds
+
+Measured free-fall times must be within ±1% of the applicable target. Test cases should record the gravity mode, expected time, actual time, tolerance, and pass/fail result.
+
+Shake-Table Calibration: measure 10 complete cycles and compare the measured period with the configured frequency, and compare the measured extreme displacement with the configured amplitude. Verify the checks visually in the animation and with automated test data. General input and motion measurements must be within ±1%.
+
+Acceptance Checks:
+- Placement snaps to the 1 ft grid and prevents elements outside the visible canvas boundary.
+- Cost updates match the placed element lengths and rates.
+- Slider values remain synchronized with their number boxes.
+- The 15-kip force-magnitude threshold breaks the associated joint constraint.
+- A tower survives 10.0 seconds without a floor-mass ground collision to pass.
+- Floor-mass ground collision or structural collapse clearly ends or identifies the failed test.
+- Clear Structure resets test readouts and returns the app to the initial blank state.
+- The Earth, Mars, and Moon gravity controls work and apply the specified backgrounds.
+- Desktop and mobile layouts remain usable and keep controls from obscuring the canvas.
 
 
 ## Out of Scope

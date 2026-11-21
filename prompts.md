@@ -146,3 +146,12 @@
   collapsible sidebar, mobile stacked controls, and clear interface states.
 - Worked: The Look and Feel section was revised without changing or building
   other application components.
+
+### Request 17
+
+- Asked: Add the Mars and Moon 10 ft free-fall targets to the approved
+  Validation section update.
+- Changed: Updated `## Validation` with Earth, Mars, and Moon target times,
+  ±1% tolerances, shake-table checks, and physics/UI acceptance checks.
+- Worked: The Validation section was revised without changing or building
+  other application components.
