@@ -210,3 +210,14 @@
   controls, physics, outcomes, and persistence/polish. Included test checks for
   each stage.
 - Worked: The Build Stages section was added without writing application code.
+
+### Request 24
+
+- Asked: Build Stage 1 from `spec.md` as a single-file HTML mockup, showing
+  all specified inputs, outputs, and plots with realistic placeholder values.
+- Changed: Replaced `index.html` with a responsive plain HTML/CSS/JavaScript
+  mockup containing the structural toolbar, 1 ft simulation grid, starter
+  tower, shake table, amplitude/frequency controls, gravity modes, numerical
+  readouts, ground-motion plot, simulation buttons, and collapsible sidebar.
+- Worked: The mockup serves successfully on a local HTTP server and renders as
+  a desktop page with the intended layout and controls.
