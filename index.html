@@ -180,7 +180,7 @@
       left: 0;
       right: 0;
       bottom: 0;
-      height: 40px;
+      height: 24px;
       background: #5b7185;
       border-top: 4px solid #3f5263;
     }
@@ -347,7 +347,7 @@
     .shake-table {
       position: absolute;
       left: 50%;
-      bottom: 40px;
+      bottom: 0;
       width: 360px;
       height: 24px;
       z-index: 4;
@@ -823,12 +823,13 @@
       if (!shakeTable || !canvas) return;
       const desiredHeight = snap(Math.max(280, Math.min(500, canvas.clientWidth * 5 / 6)));
       canvas.style.height = desiredHeight + "px";
+      designLayer.style.bottom = "24px";
       const tableWidth = Math.min(360, snap(canvas.clientWidth));
       const left = snap((canvas.clientWidth - tableWidth) / 2);
       shakeTable.style.width = tableWidth + "px";
       shakeTable.style.left = left + "px";
       shakeTable.style.transform = "none";
-      shakeTable.style.bottom = "40px";
+      shakeTable.style.bottom = "0";
     }
 
     alignShakeTable();
@@ -854,7 +855,7 @@
       const height = element.offsetHeight;
       return {
         x: Math.min(Math.max(0, snap(x)), Math.max(0, designLayer.clientWidth - width)),
-        y: Math.min(Math.max(0, snap(y)), Math.max(0, designLayer.clientHeight - height))
+        y: Math.min(Math.max(0, snap(y)), Math.max(0, snap(designLayer.clientHeight - height)))
       };
     }
 
@@ -1050,6 +1051,10 @@
         endY = startY;
       }
 
+      const tableTop = snap(designLayer.clientHeight);
+      startY = Math.min(startY, tableTop);
+      endY = Math.min(endY, tableTop);
+
       const dx = endX - startX;
       const dy = endY - startY;
       const length = Math.max(GRID, Math.hypot(dx, dy));
@@ -1116,6 +1121,8 @@
 
     function addBrace(start, end) {
       if (isTesting) return null;
+      start = { x: snap(start.x), y: Math.min(snap(start.y), snap(designLayer.clientHeight)) };
+      end = { x: snap(end.x), y: Math.min(snap(end.y), snap(designLayer.clientHeight)) };
       const dx = end.x - start.x;
       const dy = end.y - start.y;
       const length = Math.hypot(dx, dy);
@@ -1388,6 +1395,10 @@
 
     designLayer.addEventListener("pointerdown", (event) => {
       if (isTesting) return;
+      if (!selectedTool) {
+        statusLine.textContent = "Design mode · Choose a structural element";
+        return;
+      }
       if (event.target !== designLayer && selectedTool !== "Brace") return;
       const rect = designLayer.getBoundingClientRect();
       const rawX = snap(event.clientX - rect.left);
@@ -1428,9 +1439,12 @@
     });
 
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && pendingSegment) {
+      if (event.key === "Escape") {
         cancelPendingSegment();
-        statusLine.textContent = "Design mode · Placement cancelled";
+        selectElement(null);
+        selectedTool = null;
+        document.querySelectorAll(".tool").forEach((item) => item.classList.remove("active"));
+        statusLine.textContent = "Design mode · Selection cleared";
         return;
       }
       if (isTesting || (event.key !== "Delete" && event.key !== "Backspace")) return;

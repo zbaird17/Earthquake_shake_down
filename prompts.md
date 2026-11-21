@@ -292,3 +292,14 @@
   keep segment placement stable as endpoints change.
 - Worked: Browser checks passed for snapped table dimensions, grid-snapped
   floor-mass placement and resizing, and fixed-axis segment endpoint changes.
+
+### Request 31
+
+- Asked: Prevent members from going below the shake table, align the table with
+  the bottom grid line, and make Escape deselect all placement state.
+- Changed: Reduced the visible ground band to 20 px, set the structural
+  placement layer to end at the table, clamped segment and brace endpoints to
+  the bottom boundary, and made Escape clear pending segments and selected
+  tools/members.
+- Worked: Browser checks passed for table/structural-area alignment and Escape
+  clearing tools, pending segments, and selected members.
