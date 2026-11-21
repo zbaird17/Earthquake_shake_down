@@ -339,3 +339,39 @@
   puts starter column bases and the table top on the same bottom baseline.
 - Worked: Browser geometry confirmed that table top, structural layer bottom,
   and starter column bottoms share the same 480 px baseline.
+
+### Request 36
+
+- Asked: Anchor the ghost member at the cursor for left/start or top/start
+  placement, then place the opposite end with a second click.
+- Changed: Spec-first documentation now requires cursor-anchored ghost previews
+  for beams and columns.
+- Worked: Implementation is in progress and awaiting browser verification.
+
+### Request 37
+
+- Asked: Determine where the project work stopped and explain how to update a
+  Copilot subscription to the student plan.
+- Changed: No project files or subscription settings were changed. Recorded the
+  latest project status: cursor-anchored member placement is implemented and
+  awaiting browser verification.
+- Worked: Yes. Project status was identified; plan-update steps were provided.
+
+### Request 38
+
+- Asked: Confirm that the student plan had been obtained.
+- Changed: No project files or account settings were changed. The project
+  status remains at cursor-anchored member-placement implementation awaiting
+  browser verification.
+- Worked: Yes. The student's verified GitHub Education benefits were confirmed
+  from the provided benefits screenshot.
+
+### Request 39
+
+- Asked: Continue building the cursor-anchored ghost previews.
+- Changed: Added a snapped-placement-point helper that clamps beam and column
+  start points to the visible canvas and shake-table boundary. Aligned the
+  column ghost horizontally with the cursor and retained beam left-edge
+  anchoring. Also clamped the live opposite-end preview.
+- Worked: Implementation updated and the app loaded in-browser with the ghost
+  preview visible above the snap-grid table baseline.

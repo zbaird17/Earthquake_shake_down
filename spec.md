@@ -14,7 +14,7 @@ Simulation Controls: Start/Stop Test button, Clear Structure button, and Load St
 
 The app opens in design mode with a blank grid and no structural elements or floor masses. The user selects a structural element, places it on the 1 ft grid, and may revise the design before testing. A placed element is selected by clicking it. The user can reposition a selected element with the mouse or delete it with the Delete key. Escape deselects the active member and cancels pending placement. Invalid placements outside the canvas boundary or below the shake table are rejected or prevented.
 
-When a structural-member type is selected, the canvas shows a live, grid-snapped ghost preview that follows the pointer until the user places or cancels it. Beam and column previews update from a chosen start point to the current pointer position; brace and floor-mass previews indicate snapped anchor validity.
+When a structural-member type is selected, the canvas shows a live, grid-snapped ghost preview that follows the pointer until the user places or cancels it. The pointer represents the left/start point of a beam ghost or the top/start point of a column ghost, and the first click places that start point before the user clicks for the other end. Brace and floor-mass previews indicate snapped anchor validity.
 
 A clearly labeled **Load Starter Tower** button replaces the current design with a simple default frame.
 

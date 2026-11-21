@@ -857,6 +857,14 @@
       return Math.round(value / GRID) * GRID;
     }
 
+    function snapPlacementPoint(x, y) {
+      const tableTop = getTableBoundary();
+      return {
+        x: Math.max(0, Math.min(designLayer.clientWidth, snap(x))),
+        y: Math.max(0, Math.min(tableTop, snap(y)))
+      };
+    }
+
     function getTableBoundary() {
       const canvasRect = canvas.getBoundingClientRect();
       const tableRect = shakeTable.getBoundingClientRect();
@@ -999,15 +1007,43 @@
 
       const ghostWidth = placementGhost.offsetWidth;
       const ghostHeight = placementGhost.offsetHeight;
-      const left = Math.max(
-        0,
-        Math.min(designLayer.clientWidth - ghostWidth, snap(x - ghostWidth / 2))
-      );
+      let left;
+      let top;
+
+      if (type === "Column") {
+        left = Math.max(
+          0,
+          Math.min(designLayer.clientWidth - ghostWidth, snap(x) - ghostWidth / 2)
+        );
+      } else if (type === "Beam") {
+        left = Math.max(
+          0,
+          Math.min(designLayer.clientWidth - ghostWidth, snap(x))
+        );
+      } else {
+        left = Math.max(
+          0,
+          Math.min(designLayer.clientWidth - ghostWidth, snap(x - ghostWidth / 2))
+        );
+      }
+
       const tableTop = getTableBoundary();
-      const top = Math.max(
-        0,
-        Math.min(tableTop - ghostHeight, snap(y - ghostHeight / 2))
-      );
+      if (type === "Column") {
+        top = Math.max(
+          0,
+          Math.min(tableTop - ghostHeight, snap(y))
+        );
+      } else if (type === "Beam") {
+        top = Math.max(
+          0,
+          Math.min(tableTop - ghostHeight, snap(y - ghostHeight / 2))
+        );
+      } else {
+        top = Math.max(
+          0,
+          Math.min(tableTop - ghostHeight, snap(y - ghostHeight / 2))
+        );
+      }
 
       placementGhost.style.left = left + "px";
       placementGhost.style.top = top + "px";
@@ -1117,6 +1153,8 @@
       let endX = snap(x);
       let endY = snap(y);
 
+      endX = Math.max(0, Math.min(designLayer.clientWidth, endX));
+      endY = Math.max(0, Math.min(getTableBoundary(), endY));
       if (selectedTool === "Column") endX = start.x;
       if (selectedTool === "Beam") endY = start.y;
 
@@ -1511,8 +1549,12 @@
       removePlacementGhost();
       if (event.target !== designLayer && selectedTool !== "Brace") return;
       const rect = designLayer.getBoundingClientRect();
-      const rawX = snap(event.clientX - rect.left);
-      const rawY = snap(event.clientY - rect.top);
+      const placementPoint = snapPlacementPoint(
+        event.clientX - rect.left,
+        event.clientY - rect.top
+      );
+      const rawX = placementPoint.x;
+      const rawY = placementPoint.y;
 
       if (selectedTool === "Column" || selectedTool === "Beam") {
         if (!pendingSegment) {
