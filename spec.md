@@ -4,13 +4,17 @@ An interactive 2D structural-dynamics learning tool for engineering students to 
 ## Inputs
 Structural Elements (Canvas Placement): Columns ($50/ft), beams ($40/ft), diagonal braces ($300/ft), and floor masses ($20/ft), placed via grid snapping.
 
-Grid Resolution: The canvas has 1 ft grid lines, and placement snaps to those lines. Structural lengths are measured in feet.
+Grid Resolution: The canvas has 1 ft grid lines, and placement snaps to those lines. Structural lengths are measured in feet. All structural elements and floor masses must remain within the visible canvas boundary.
 
-Shaking Controls: Shake table amplitude A and frequency f for a sine-wave test. Each value has a slider and a corresponding synchronized number box.
+Floor Masses: Floor masses may be placed freely at any grid point. Placement does not require a specific attachment location.
 
-Simulation Controls: Start/Stop Test button and Clear Structure button.
+Shaking Controls: Shake table amplitude A ranges from 0 to 12 inches, and frequency f ranges from 0.1 to 10 Hz for a sine-wave test. Each value has a slider and a corresponding synchronized number box.
 
-The app opens in design mode with a blank grid and no structural elements or floor masses. The user selects a structural element, places it on the 1 ft grid, and may remove or revise the design before testing. A clearly labeled **Load Starter Tower** button replaces the blank design with a simple default frame; if a custom structure is already in place, loading the starter tower requires confirmation.
+Simulation Controls: Start/Stop Test button, Clear Structure button, and Load Starter Tower button.
+
+The app opens in design mode with a blank grid and no structural elements or floor masses. The user selects a structural element, places it on the 1 ft grid, and may remove or revise the design before testing. Invalid placements outside the canvas boundary are rejected or prevented.
+
+A clearly labeled **Load Starter Tower** button replaces the blank design with a simple default frame. If a custom structure is already in place, loading the starter tower requires confirmation.
 
 The user sets the sine-wave amplitude and frequency, starts the test, and observes the shake table and tower. During testing, the structure cannot be edited. The user may stop the test manually or clear the structure to return to design mode.
 

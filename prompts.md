@@ -106,3 +106,13 @@
   certification.
 - Worked: The Purpose section was revised without changing or building other
   app components.
+
+### Request 13
+
+- Asked: Expand the sine-wave frequency range and edit the Inputs section to
+  match the planned input decisions.
+- Changed: Updated `spec.md` under `## Inputs` with a 0–12 inch amplitude range,
+  a 0.1–10 Hz frequency range, free floor-mass placement at grid points,
+  visible-canvas placement limits, and the starter-tower control.
+- Worked: The Inputs section was revised without changing or building any
+  other application components.
