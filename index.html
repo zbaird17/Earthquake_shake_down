@@ -732,7 +732,7 @@
         <button class="tool" type="button" data-tool="Brace">
           <span class="tool-icon" aria-hidden="true">╱</span>
           <span class="tool-name">Brace</span>
-          <span class="tool-price">$300/ft</span>
+          <span class="tool-price">$30/ft</span>
         </button>
         <button class="tool" type="button" data-tool="Floor mass">
           <span class="tool-icon" aria-hidden="true">▰</span>
@@ -789,7 +789,7 @@
             <div class="metric-grid">
               <div class="metric">
                 <span class="metric-label">Total cost</span>
-                <span class="metric-value">$8,420</span>
+                <span class="metric-value" id="totalCostValue">$0</span>
               </div>
               <div class="metric">
                 <span class="metric-label">Elapsed</span>
@@ -958,6 +958,37 @@
 
     function updateEmptyHint() {
       emptyHint.hidden = designLayer.querySelector(".placed-element") !== null;
+      updateTotalCost();
+    }
+
+    function updateTotalCost() {
+      let total = 0;
+      designLayer.querySelectorAll(".placed-element").forEach((element) => {
+        const type = element.dataset.tool;
+        if (type === "Column" || type === "Beam") {
+          const startX = Number(element.dataset.startX);
+          const startY = Number(element.dataset.startY);
+          const endX = Number(element.dataset.endX);
+          const endY = Number(element.dataset.endY);
+          if (Number.isFinite(startX) && Number.isFinite(endX) &&
+              Number.isFinite(startY) && Number.isFinite(endY)) {
+            const lengthFeet = Math.hypot(endX - startX, endY - startY) / GRID;
+            total += lengthFeet * (type === "Column" ? 50 : 40);
+          }
+        } else if (type === "Brace") {
+          const dx = Number(element.dataset.endX) - Number(element.dataset.startX);
+          const dy = Number(element.dataset.endY) - Number(element.dataset.startY);
+          if (Number.isFinite(dx) && Number.isFinite(dy)) {
+            total += Math.hypot(dx, dy) / GRID * 30;
+          }
+        } else if (type === "Floor mass") {
+          const widthFeet = parseFloat(element.style.width || 0) / GRID;
+          const heightFeet = parseFloat(element.style.height || 0) / GRID;
+          total += widthFeet * heightFeet * 20;
+        }
+      });
+      const totalCostValue = document.getElementById("totalCostValue");
+      if (totalCostValue) totalCostValue.textContent = "$" + Math.round(total).toLocaleString("en-US");
     }
 
     function selectElement(element) {
@@ -1072,10 +1103,11 @@
         placementGhost.style.transform = "none";
       } else if (type === "Brace") {
         const anchor = snapBracePoint(x, y);
-        placementGhost.style.width = "72px";
-        placementGhost.style.height = "10px";
-        placementGhost.style.transform = "rotate(-45deg)";
-        placementGhost.style.transformOrigin = "0 50%";
+        placementGhost.style.width = "14px";
+        placementGhost.style.height = "14px";
+        placementGhost.style.borderRadius = "50%";
+        placementGhost.style.transform = "none";
+        placementGhost.style.transformOrigin = "50% 50%";
         placementGhost.style.opacity = anchor ? "0.92" : "0.28";
       } else {
         placementGhost.style.width = "40px";
@@ -1199,6 +1231,7 @@
 
       if (!pendingSegment) {
         pendingSegment = anchor;
+        removePlacementGhost();
         segmentPreview = document.createElement("div");
         segmentPreview.className = "segment-preview brace";
         segmentPreview.style.left = anchor.x + "px";
@@ -1465,6 +1498,7 @@
         const height = Math.max(GRID, snap(startHeight + moveEvent.clientY - startY));
         element.style.width = Math.min(width, designLayer.clientWidth - left) + "px";
         element.style.height = Math.min(height, getTableBoundary() - top) + "px";
+        updateTotalCost();
         statusLine.textContent = "Floor mass · " + (parseFloat(element.style.width) / GRID).toFixed(0) + " × " + (parseFloat(element.style.height) / GRID).toFixed(0) + " ft";
       }
 
@@ -1584,6 +1618,7 @@
 
         if (label && type !== "Brace") label.textContent = (length / GRID).toFixed(0) + " ft";
         alignEndpointHandles(element);
+        updateTotalCost();
         statusLine.textContent = type + " length · " + (length / GRID).toFixed(0) + " ft";
       }
 
@@ -1713,6 +1748,7 @@
             }
           }
           alignEndpointHandles(element);
+          updateTotalCost();
         }
       }
 
@@ -1778,12 +1814,20 @@
     function bindRangeAndNumber(rangeId, numberId) {
       const range = document.getElementById(rangeId);
       const number = document.getElementById(numberId);
-      range.addEventListener("input", () => { number.value = range.value; });
+      const clamp = (value) => Math.min(Number(range.max), Math.max(Number(range.min), Number(value)));
+      range.addEventListener("input", () => {
+        number.value = range.value;
+      });
       number.addEventListener("input", () => {
-        if (number.value !== "") {
-          const value = Math.min(Number(number.max), Math.max(Number(number.min), Number(number.value)));
-          range.value = value;
-        }
+        if (number.value === "") return;
+        const value = clamp(number.value);
+        number.value = String(value);
+        range.value = String(value);
+      });
+      number.addEventListener("change", () => {
+        const value = number.value === "" ? range.value : clamp(number.value);
+        number.value = String(value);
+        range.value = String(value);
       });
     }
 

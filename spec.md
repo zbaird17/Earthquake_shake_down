@@ -2,13 +2,15 @@
 An interactive 2D structural-dynamics learning tool for engineering students to design multi-story framed towers, compare structural choices and construction costs, and observe their approximate response to user-selected horizontal sine-wave shaking. The app supports conceptual instruction and design exploration rather than formal structural analysis or building-code certification.
 
 ## Inputs
-Structural Elements (Canvas Placement): Columns ($50/ft), beams ($40/ft), diagonal braces ($300/ft), and floor masses ($20/ft), placed via grid snapping.
+Structural Elements (Canvas Placement): Columns ($50/ft), beams ($40/ft), diagonal braces ($30/ft), and floor masses ($20/ft), placed via grid snapping.
 
 Grid Resolution: The canvas has 1 ft grid lines, and placement snaps to those lines. Structural lengths are measured in feet. All structural elements and floor masses must remain within the visible canvas boundary.
 
 Floor Masses: Floor masses may be placed freely at any grid point. Placement does not require a specific attachment location.
 
 Shaking Controls: Shake table amplitude A ranges from 0 to 12 inches, and frequency f ranges from 0.1 to 10 Hz for a sine-wave test. Each value has a slider and a corresponding synchronized number box. Suggested starting values are 6 inches of amplitude and 5 Hz of frequency.
+
+Stage 3 Cost and Controls: Structural total cost updates live whenever the design changes. Each column or beam length contributes at $50/ft or $40/ft respectively, each brace contributes at $30/ft, and each floor mass contributes at $20/ft based on its length in the horizontal and vertical dimensions as represented by the element footprint. Amplitude and frequency sliders and number boxes remain synchronized and enforce their stated ranges. Earth, Mars, and Moon selections update the gravity mode and its required visual theme.
 
 Simulation Controls: Start/Stop Test button, Clear Structure button, and Load Starter Tower button.
 

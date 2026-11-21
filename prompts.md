@@ -647,3 +647,31 @@
   left/top to right/middle and left/bottom to right/middle.
 - Worked: Browser verification passed. The reload has exactly two braces:
   180,220–420,340 and 420,340–180,460.
+
+### Request 66
+
+- Asked: Build Stage 3, connecting live costs and completing the shaking and
+  gravity controls.
+- Changed: Updated the Stage 3 spec with live structural cost rules and
+  synchronized control behavior before app implementation.
+- Worked: Spec change is complete and implementation is starting.
+
+### Request 67
+
+- Asked: Complete and verify Stage 3 costs and controls.
+- Changed: Added live structural cost calculation, bidirectional slider/number
+  synchronization with range clamping, and verified Earth/Mars/Moon theme and
+  free-fall readout behavior.
+- Worked: Browser verification passed. Starter cost is $11,350, amplitude
+  clamps to 12, frequency clamps to 0.1, Mars/Moon themes apply, and clearing
+  resets cost and structure count to zero.
+
+### Request 68
+
+- Asked: Change brace cost from $300/ft to $30/ft and remove the duplicate brace
+  ghost while placing.
+- Changed: Updated brace UI pricing and live cost calculation to $30/ft.
+  Reduced the unplaced brace placement ghost to one snapped anchor dot so only
+  the live segment preview remains after the first brace click.
+- Worked: Browser verification passed. Brace placement showed one anchor dot
+  before the first click, then only one live segment preview after it.
