@@ -193,3 +193,11 @@
   contradictions and missing requirements.
 - Worked: The spec is ready to build. Minor implementation choices such as exact
   starter-tower geometry and internal unit scaling can be resolved while coding.
+
+### Request 22
+
+- Asked: Read the full spec and suggest 4–6 staged implementation phases,
+  starting with a non-calculation page mockup and including testing checks.
+- Changed: No spec or application files were changed. A staged build-and-test
+  plan was prepared for the response.
+- Worked: The planning request was fulfilled and no code was written.
