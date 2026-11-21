@@ -116,3 +116,13 @@
   visible-canvas placement limits, and the starter-tower control.
 - Worked: The Inputs section was revised without changing or building any
   other application components.
+
+### Request 14
+
+- Asked: Plan only the Calculations section, ask about unclear physics details,
+  add a gravity feature, and add an eighth heading named `Features`.
+- Changed: Added the sine-wave displacement formula, Earth/Mars/Moon gravity
+  values, the 15-kip joint-force rule, and the 10-second survival rule to
+  `spec.md`. Added a final `## Features` section describing the bottom gravity
+  control and Mars red/Moon grey backgrounds.
+- Worked: The Calculations and Features edits are complete and ready for commit.

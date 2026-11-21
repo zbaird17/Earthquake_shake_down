@@ -19,12 +19,15 @@ A clearly labeled **Load Starter Tower** button replaces the blank design with a
 The user sets the sine-wave amplitude and frequency, starts the test, and observes the shake table and tower. During testing, the structure cannot be edited. The user may stop the test manually or clear the structure to return to design mode.
 
 ## Calculations
-2D Rigid-Body Physics (Matter.js): Conversion scale of 
-g=32.2 ft/s 
+2D Rigid-Body Physics (Matter.js): The simulation uses 2D rigid-body physics to model tower motion and constraints. Unit conversion must consistently represent positions, forces, acceleration, and time.
 
-Joint Failure: If the force exfeeds 15 kip at any joint, the Matter.js constraint breaks.
+Gravity: Earth gravity is 32.2 ft/s². Mars gravity is 12.21 ft/s², and Moon gravity is 5.33 ft/s². Selecting a gravity mode applies the corresponding acceleration to the simulation.
 
-Tower wins if it survived for 10.0 s without any floor mass colliding with the ground plane.
+Shake Table Displacement: For sine-wave shaking, horizontal table displacement is `x(t) = A sin(2πft)`, where A is amplitude in inches, f is frequency in Hz, t is elapsed time in seconds, and the table starts at zero displacement.
+
+Joint Failure: If the force magnitude at any joint exceeds 15 kip, the associated Matter.js constraint breaks.
+
+Tower wins if it survives for 10.0 seconds without any floor mass colliding with the ground plane.
 
 ## Outputs
 Real-time animation of the tower, shake table motion, color-coded joint stress states, and structural collapse.
@@ -45,3 +48,6 @@ Measure the table's motion from the animation (the time for 10 cycles and the di
 
 ## Out of Scope
 Three-dimensional out-of-plane torsion or buckling
+
+## Features
+Place a gravity control at the bottom of the app for Earth, Mars, and Moon modes. Earth uses the default 32.2 ft/s² setting and appearance. Mars uses 12.21 ft/s² and changes the background to red. The Moon uses 5.33 ft/s² and changes the background to grey.
