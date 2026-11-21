@@ -232,3 +232,22 @@
   test mode.
 - Worked: Browser verification passed for blank state, starter loading,
   placement, Delete removal, test-mode editing lock, and mobile overflow.
+
+### Request 26
+
+- Asked: Shrink the canvas at narrow viewport widths and keep the tower view
+  centered instead of left-aligning it.
+- Changed: Updated the responsive workspace and mobile canvas sizing so the
+  canvas uses the available width, remains centered, and does not overflow;
+  reduced the mobile minimum canvas height and prevented horizontal layout
+  left alignment.
+- Worked: Responsive sizing was implemented. The starter tower now needs
+  dynamic center-based placement verification.
+
+### Request 26 verification
+
+- Changed: Verified the canvas at a 620 px viewport: it shrinks to the available
+  width, has no horizontal overflow, remains centered, and the starter tower
+  is built around the canvas center.
+- Worked: Yes. The responsive sizing and dynamic starter placement passed
+  browser checks.
