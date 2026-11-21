@@ -312,3 +312,30 @@
   and the rule that structural members cannot extend below the table.
 - Worked: The process and recently implemented boundary behavior are now
   documented before future app changes.
+
+### Request 33
+
+- Asked: Line the shake table up exactly with the bottom grid line and connect
+  columns directly on top of it.
+- Changed: Spec-first documentation now requires no separate ground band,
+  direct column/table connection at the bottom snap-grid line, and no structural
+  members or masses below the table.
+- Worked: Awaiting implementation and browser verification.
+
+### Request 34
+
+- Asked: Show a preview after selecting a member type and moving the pointer.
+- Changed: Spec-first documentation now requires live grid-snapped ghost
+  previews for selected structural tools, with beam/column endpoint previews
+  and brace/floor-mass anchor feedback.
+- Worked: Implementation is in progress and awaiting browser verification.
+
+### Request 35
+
+- Asked: Make the shake table align exactly with the bottom grid line and place
+  columns directly on top of it.
+- Changed: Spec and app geometry were corrected by removing the canvas border
+  offset and using the live table edge as the structural boundary. The app now
+  puts starter column bases and the table top on the same bottom baseline.
+- Worked: Browser geometry confirmed that table top, structural layer bottom,
+  and starter column bottoms share the same 480 px baseline.

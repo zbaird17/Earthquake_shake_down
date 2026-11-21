@@ -164,7 +164,9 @@
       max-height: 500px;
       min-height: 360px;
       position: relative;
-      border: 2px solid #a9bdd3;
+      border: 0;
+      outline: 2px solid #a9bdd3;
+      outline-offset: 0;
       border-radius: 18px;
       background:
         linear-gradient(rgba(95, 139, 180, 0.14) 1px, transparent 1px),
@@ -180,9 +182,10 @@
       left: 0;
       right: 0;
       bottom: 0;
-      height: 24px;
-      background: #5b7185;
-      border-top: 4px solid #3f5263;
+      height: 20px;
+      background: transparent;
+      border-top: 0;
+      z-index: 1;
     }
 
     .canvas-label {
@@ -269,6 +272,40 @@
       box-shadow: 3px 3px 0 rgba(23, 35, 59, 0.18);
     }
 
+    .placement-preview {
+      position: absolute;
+      z-index: 7;
+      border: 2px dashed #2563eb;
+      background: rgba(37, 99, 235, 0.14);
+      pointer-events: none;
+      opacity: 0.92;
+    }
+
+    .placement-preview.column {
+      width: 10px;
+      height: 60px;
+      border-radius: 3px;
+    }
+
+    .placement-preview.beam {
+      width: 60px;
+      height: 10px;
+      border-radius: 3px;
+    }
+
+    .placement-preview.brace {
+      width: 72px;
+      height: 8px;
+      border-radius: 4px;
+      transform: rotate(-45deg);
+    }
+
+    .placement-preview.floor-mass {
+      width: 40px;
+      height: 20px;
+      border-radius: 7px;
+    }
+
     .mass-resize {
       position: absolute;
       right: -8px;
@@ -349,7 +386,7 @@
       left: 50%;
       bottom: 0;
       width: 360px;
-      height: 24px;
+      height: 20px;
       z-index: 4;
       transform: translateX(-50%);
       border: 3px solid #26384a;
@@ -807,6 +844,7 @@
     let braceDirection = "right";
     let pendingSegment = null;
     let segmentPreview = null;
+    let placementGhost = null;
 
     const elementSizes = {
       "Column": { width: 10, height: 60 },
@@ -819,11 +857,18 @@
       return Math.round(value / GRID) * GRID;
     }
 
+    function getTableBoundary() {
+      const canvasRect = canvas.getBoundingClientRect();
+      const tableRect = shakeTable.getBoundingClientRect();
+      const layerRect = designLayer.getBoundingClientRect();
+      return snap(tableRect.top - layerRect.top);
+    }
+
     function alignShakeTable() {
       if (!shakeTable || !canvas) return;
       const desiredHeight = snap(Math.max(280, Math.min(500, canvas.clientWidth * 5 / 6)));
       canvas.style.height = desiredHeight + "px";
-      designLayer.style.bottom = "24px";
+      designLayer.style.bottom = "20px";
       const tableWidth = Math.min(360, snap(canvas.clientWidth));
       const left = snap((canvas.clientWidth - tableWidth) / 2);
       shakeTable.style.width = tableWidth + "px";
@@ -853,9 +898,10 @@
     function clampPosition(element, x, y) {
       const width = element.offsetWidth;
       const height = element.offsetHeight;
+      const tableBoundary = getTableBoundary();
       return {
         x: Math.min(Math.max(0, snap(x)), Math.max(0, designLayer.clientWidth - width)),
-        y: Math.min(Math.max(0, snap(y)), Math.max(0, snap(designLayer.clientHeight - height)))
+        y: Math.min(Math.max(0, snap(y)), Math.max(0, snap(tableBoundary - height)))
       };
     }
 
@@ -906,6 +952,65 @@
         segmentPreview.remove();
         segmentPreview = null;
       }
+    }
+
+    function removePlacementGhost() {
+      if (placementGhost) {
+        placementGhost.remove();
+        placementGhost = null;
+      }
+    }
+
+    function showPlacementGhost(type, x, y) {
+      if (!selectedTool || isTesting || pendingSegment) {
+        removePlacementGhost();
+        return;
+      }
+
+      if (!placementGhost) {
+        placementGhost = document.createElement("div");
+        placementGhost.className = "placement-preview";
+        designLayer.appendChild(placementGhost);
+      }
+
+      placementGhost.className =
+        "placement-preview " +
+        (type === "Floor mass" ? "floor-mass" : type.toLowerCase());
+
+      if (type === "Column") {
+        placementGhost.style.width = "10px";
+        placementGhost.style.height = "60px";
+        placementGhost.style.transform = "none";
+      } else if (type === "Beam") {
+        placementGhost.style.width = "60px";
+        placementGhost.style.height = "10px";
+        placementGhost.style.transform = "none";
+      } else if (type === "Brace") {
+        const anchor = snapBracePoint(x, y);
+        placementGhost.style.width = "72px";
+        placementGhost.style.height = "8px";
+        placementGhost.style.transform = "rotate(-45deg)";
+        placementGhost.style.opacity = anchor ? "0.92" : "0.28";
+      } else {
+        placementGhost.style.width = "40px";
+        placementGhost.style.height = "20px";
+        placementGhost.style.transform = "none";
+      }
+
+      const ghostWidth = placementGhost.offsetWidth;
+      const ghostHeight = placementGhost.offsetHeight;
+      const left = Math.max(
+        0,
+        Math.min(designLayer.clientWidth - ghostWidth, snap(x - ghostWidth / 2))
+      );
+      const tableTop = getTableBoundary();
+      const top = Math.max(
+        0,
+        Math.min(tableTop - ghostHeight, snap(y - ghostHeight / 2))
+      );
+
+      placementGhost.style.left = left + "px";
+      placementGhost.style.top = top + "px";
     }
 
     function getStructuralAnchorPoints() {
@@ -1028,7 +1133,7 @@
         segmentPreview.style.transform = "none";
       } else {
         segmentPreview.style.left = Math.min(start.x, endX) + "px";
-        segmentPreview.style.top = (start.y - 4) + "px";
+        segmentPreview.style.top = (start.y >= getTableBoundary() ? getTableBoundary() - 8 : start.y - 4) + "px";
         segmentPreview.style.width = length + "px";
         segmentPreview.style.height = "8px";
         segmentPreview.style.transform = "none";
@@ -1051,7 +1156,7 @@
         endY = startY;
       }
 
-      const tableTop = snap(designLayer.clientHeight);
+      const tableTop = getTableBoundary();
       startY = Math.min(startY, tableTop);
       endY = Math.min(endY, tableTop);
 
@@ -1068,7 +1173,7 @@
 
       if (type === "Beam") {
         element.style.left = Math.min(startX, endX) + "px";
-        element.style.top = (startY - 5) + "px";
+        element.style.top = (startY >= tableTop ? tableTop - 10 : startY - 5) + "px";
       } else {
         element.style.left = (startX - 5) + "px";
         element.style.top = Math.min(startY, endY) + "px";
@@ -1121,8 +1226,9 @@
 
     function addBrace(start, end) {
       if (isTesting) return null;
-      start = { x: snap(start.x), y: Math.min(snap(start.y), snap(designLayer.clientHeight)) };
-      end = { x: snap(end.x), y: Math.min(snap(end.y), snap(designLayer.clientHeight)) };
+      const tableTop = getTableBoundary();
+      start = { x: snap(start.x), y: Math.min(snap(start.y), tableTop) };
+      end = { x: snap(end.x), y: Math.min(snap(end.y), tableTop) };
       const dx = end.x - start.x;
       const dy = end.y - start.y;
       const length = Math.hypot(dx, dy);
@@ -1181,7 +1287,7 @@
         const width = Math.max(GRID, snap(startWidth + moveEvent.clientX - startX));
         const height = Math.max(GRID, snap(startHeight + moveEvent.clientY - startY));
         element.style.width = Math.min(width, designLayer.clientWidth - left) + "px";
-        element.style.height = Math.min(height, designLayer.clientHeight - top) + "px";
+        element.style.height = Math.min(height, getTableBoundary() - top) + "px";
         statusLine.textContent = "Floor mass · " + (parseFloat(element.style.width) / GRID).toFixed(0) + " × " + (parseFloat(element.style.height) / GRID).toFixed(0) + " ft";
       }
 
@@ -1231,8 +1337,9 @@
 
         startX = Math.max(0, Math.min(designLayer.clientWidth - (type === "Column" ? 10 : 0), startX));
         endX = Math.max(0, Math.min(designLayer.clientWidth - (type === "Column" ? 10 : 0), endX));
-        startY = Math.max(0, Math.min(designLayer.clientHeight, startY));
-        endY = Math.max(0, Math.min(designLayer.clientHeight, endY));
+        const tableTop = getTableBoundary();
+        startY = Math.max(0, Math.min(tableTop, startY));
+        endY = Math.max(0, Math.min(tableTop, endY));
 
         const dx = endX - startX;
         const dy = endY - startY;
@@ -1247,7 +1354,7 @@
 
         if (type === "Beam") {
           element.style.left = Math.min(startX, endX) + "px";
-          element.style.top = (startY - 5) + "px";
+          element.style.top = (startY >= tableTop ? tableTop - 10 : startY - 5) + "px";
           element.style.width = length + "px";
           element.style.height = "10px";
         } else {
@@ -1338,6 +1445,7 @@
     function clearStructure() {
       if (isTesting) return;
       cancelPendingSegment();
+      removePlacementGhost();
       designLayer.replaceChildren();
       selectElement(null);
       updateEmptyHint();
@@ -1350,17 +1458,17 @@
       const centerX = designLayer.clientWidth / 2;
       const left = centerX - 120;
       const right = centerX + 120;
-      const bottom = designLayer.clientHeight - 90;
-      addSegment("Column", { x: left, y: bottom - 20 }, { x: left, y: bottom - 140 });
-      addSegment("Column", { x: right, y: bottom - 20 }, { x: right, y: bottom - 140 });
-      addSegment("Beam", { x: left, y: bottom - 20 }, { x: right, y: bottom - 20 });
-      addSegment("Beam", { x: left, y: bottom - 140 }, { x: right, y: bottom - 140 });
+      const bottom = getTableBoundary();
+      addSegment("Column", { x: left, y: bottom - 120 }, { x: left, y: bottom });
+      addSegment("Column", { x: right, y: bottom - 120 }, { x: right, y: bottom });
+      addSegment("Beam", { x: left, y: bottom }, { x: right, y: bottom });
+      addSegment("Beam", { x: left, y: bottom - 120 }, { x: right, y: bottom - 120 });
       addSegment("Beam", { x: left, y: 60 }, { x: right, y: 60 });
-      addBrace({ x: left, y: bottom - 20 }, { x: right, y: bottom - 140 });
-      addBrace({ x: right, y: bottom - 20 }, { x: left, y: bottom - 140 });
+      addBrace({ x: left, y: bottom }, { x: right, y: bottom - 120 });
+      addBrace({ x: right, y: bottom }, { x: left, y: bottom - 120 });
       const positions = [
-        ["Floor mass", centerX, bottom - 48],
-        ["Floor mass", centerX, bottom - 168]
+        ["Floor mass", centerX, bottom - 60],
+        ["Floor mass", centerX, bottom - 180]
       ];
       positions.forEach(([type, x, y, direction]) => addElement(type, x, y, { direction }));
       selectElement(null);
@@ -1386,6 +1494,7 @@
       tool.addEventListener("click", () => {
         if (isTesting) return;
         cancelPendingSegment();
+        removePlacementGhost();
         document.querySelectorAll(".tool").forEach((item) => item.classList.remove("active"));
         tool.classList.add("active");
         selectedTool = tool.dataset.tool;
@@ -1399,6 +1508,7 @@
         statusLine.textContent = "Design mode · Choose a structural element";
         return;
       }
+      removePlacementGhost();
       if (event.target !== designLayer && selectedTool !== "Brace") return;
       const rect = designLayer.getBoundingClientRect();
       const rawX = snap(event.clientX - rect.left);
@@ -1433,14 +1543,25 @@
     });
 
     designLayer.addEventListener("pointermove", (event) => {
+      if (!pendingSegment) {
+        const rect = designLayer.getBoundingClientRect();
+        showPlacementGhost(
+          selectedTool,
+          snap(event.clientX - rect.left),
+          snap(event.clientY - rect.top)
+        );
+      }
       if (!pendingSegment) return;
       const rect = designLayer.getBoundingClientRect();
       updateSegmentPreview(event.clientX - rect.left, event.clientY - rect.top);
     });
 
+    designLayer.addEventListener("pointerleave", removePlacementGhost);
+
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         cancelPendingSegment();
+        removePlacementGhost();
         selectElement(null);
         selectedTool = null;
         document.querySelectorAll(".tool").forEach((item) => item.classList.remove("active"));
@@ -1486,7 +1607,10 @@
 
     function setTesting(testing) {
       isTesting = testing;
-      if (testing) cancelPendingSegment();
+      if (testing) {
+        cancelPendingSegment();
+        removePlacementGhost();
+      }
       document.querySelectorAll(".tool").forEach((tool) => { tool.disabled = testing; });
       document.getElementById("starterBtn").disabled = testing;
       document.getElementById("starterTop").disabled = testing;
