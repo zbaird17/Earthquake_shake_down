@@ -383,3 +383,15 @@
 - Changed: Updated the project spec before app implementation to require the
   column base to be set on the table baseline with the top chosen afterward.
 - Worked: Spec change is complete and awaiting implementation and commit.
+
+### Request 41
+
+- Asked: Implement the agreed column placement behavior so the bottom is fixed
+  on the table and the pointer decides the height.
+- Changed: Updated the column ghost to extend upward from the shake-table
+  baseline, fixed the first column placement point to that baseline, and left
+  the second point free to set the column height.
+- Changed again: Added shake-table pointer handling so clicking directly on the
+  table starts column placement, plus table-hover feedback for the column ghost.
+- Worked: Browser reload completed and the top-point dispatch placed a column
+  upward from the table baseline.

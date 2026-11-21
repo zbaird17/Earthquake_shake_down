@@ -1029,10 +1029,7 @@
 
       const tableTop = getTableBoundary();
       if (type === "Column") {
-        top = Math.max(
-          0,
-          Math.min(tableTop - ghostHeight, snap(y))
-        );
+        top = tableTop - ghostHeight;
       } else if (type === "Beam") {
         top = Math.max(
           0,
@@ -1554,7 +1551,9 @@
         event.clientY - rect.top
       );
       const rawX = placementPoint.x;
-      const rawY = placementPoint.y;
+      const rawY = selectedTool === "Column" && !pendingSegment
+        ? getTableBoundary()
+        : placementPoint.y;
 
       if (selectedTool === "Column" || selectedTool === "Beam") {
         if (!pendingSegment) {
@@ -1599,6 +1598,35 @@
     });
 
     designLayer.addEventListener("pointerleave", removePlacementGhost);
+
+    shakeTable.addEventListener("pointermove", (event) => {
+      if (!pendingSegment && selectedTool === "Column" && !isTesting) {
+        const rect = designLayer.getBoundingClientRect();
+        showPlacementGhost(
+          "Column",
+          snap(event.clientX - rect.left),
+          getTableBoundary()
+        );
+      }
+    });
+
+    shakeTable.addEventListener("pointerleave", removePlacementGhost);
+
+    shakeTable.addEventListener("pointerdown", (event) => {
+      if (isTesting || selectedTool !== "Column" || pendingSegment) return;
+      const rect = designLayer.getBoundingClientRect();
+      const x = snap(event.clientX - rect.left);
+      pendingSegment = { x, y: getTableBoundary() };
+      segmentPreview = document.createElement("div");
+      segmentPreview.className = "segment-preview column";
+      segmentPreview.style.left = (x - 5) + "px";
+      segmentPreview.style.top = getTableBoundary() + "px";
+      segmentPreview.style.width = "10px";
+      segmentPreview.style.height = "0px";
+      designLayer.appendChild(segmentPreview);
+      removePlacementGhost();
+      statusLine.textContent = "Design mode · Click the top point for column height";
+    });
 
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
