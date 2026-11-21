@@ -155,3 +155,13 @@
   ±1% tolerances, shake-table checks, and physics/UI acceptance checks.
 - Worked: The Validation section was revised without changing or building
   other application components.
+
+### Request 18
+
+- Asked: Review and shorten the Out of Scope section, then update it with the
+  approved exclusions.
+- Changed: Reduced `## Out of Scope` to three-dimensional/out-of-plane
+  behavior, buckling, recorded earthquake libraries, and other loads such as
+  wind and fire.
+- Worked: The Out of Scope section was revised without changing or building
+  other application components.

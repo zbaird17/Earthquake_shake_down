@@ -76,7 +76,10 @@ Acceptance Checks:
 
 
 ## Out of Scope
-Three-dimensional out-of-plane torsion or buckling
+- Three-dimensional analysis, out-of-plane motion, and torsion.
+- Buckling analysis.
+- Recorded earthquake ground-motion libraries; the app uses only user-selected sine-wave amplitude and frequency.
+- Other load types, such as wind and fire.
 
 ## Features
 Place a gravity control at the bottom of the app for Earth, Mars, and Moon modes. Earth uses the default 32.2 ft/s² setting and appearance. Mars uses 12.21 ft/s² and changes the background to red. The Moon uses 5.33 ft/s² and changes the background to grey.
