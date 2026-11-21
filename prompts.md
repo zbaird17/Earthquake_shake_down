@@ -221,3 +221,14 @@
   readouts, ground-motion plot, simulation buttons, and collapsible sidebar.
 - Worked: The mockup serves successfully on a local HTTP server and renders as
   a desktop page with the intended layout and controls.
+
+### Request 25
+
+- Asked: Build Stage 2 from `spec.md` with functional structural placement and
+  editing while retaining the mockup inputs, outputs, and plots.
+- Changed: Updated `index.html` for a blank initial design, 1 ft grid-snapped
+  placement, selectable and draggable elements, Delete-key removal, starter
+  tower loading, structure clearing, boundary limits, and editing lock during
+  test mode.
+- Worked: Browser verification passed for blank state, starter loading,
+  placement, Delete removal, test-mode editing lock, and mobile overflow.

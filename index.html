@@ -126,6 +126,11 @@
       background: #eaf2ff;
     }
 
+    .tool:disabled, .button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
     .tool-icon {
       display: block;
       height: 35px;
@@ -205,6 +210,77 @@
     }
 
     .tower svg { width: 100%; height: 100%; overflow: visible; }
+    .design-layer {
+      position: absolute;
+      inset: 0 0 42px;
+      z-index: 3;
+    }
+
+    .placed-element {
+      position: absolute;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+      z-index: 2;
+    }
+
+    .placed-element:active { cursor: grabbing; }
+
+    .placed-element.selected {
+      filter: drop-shadow(0 0 5px #2563eb);
+      outline: 2px dashed #2563eb;
+      outline-offset: 3px;
+    }
+
+    .placed-element.column {
+      width: 10px;
+      height: 60px;
+      border: 2px solid #17233b;
+      border-radius: 3px;
+      background: #6ea3cf;
+    }
+
+    .placed-element.beam {
+      width: 60px;
+      height: 10px;
+      border: 2px solid #17233b;
+      border-radius: 3px;
+      background: #91b5d6;
+    }
+
+    .placed-element.brace {
+      width: 72px;
+      height: 8px;
+      border: 2px solid #17233b;
+      border-radius: 4px;
+      background: #b6c9dc;
+      transform-origin: 50% 50%;
+    }
+
+    .placed-element.brace.right { transform: rotate(45deg); }
+    .placed-element.brace.left { transform: rotate(-45deg); }
+
+    .placed-element.floor-mass {
+      width: 50px;
+      height: 24px;
+      border: 3px solid #17233b;
+      border-radius: 7px;
+      background: #ffb703;
+      box-shadow: 3px 3px 0 rgba(23, 35, 59, 0.18);
+    }
+
+    .empty-hint {
+      position: absolute;
+      left: 50%;
+      top: 46%;
+      z-index: 1;
+      width: 260px;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: #71849a;
+      font-size: 13px;
+      pointer-events: none;
+    }
     .member { stroke: #2b4263; stroke-width: 8; stroke-linecap: round; }
     .brace { stroke: #8aa0b8; stroke-width: 5; stroke-linecap: round; }
     .mass { fill: #ffb703; stroke: #17233b; stroke-width: 4; }
@@ -523,7 +599,7 @@
       </div>
       <div class="top-actions">
         <button class="button" type="button" id="starterTop">Load starter tower</button>
-        <button class="button primary" type="button">Start test</button>
+        <button class="button primary" type="button" id="topStartBtn">Start test</button>
       </div>
     </header>
 
@@ -554,33 +630,8 @@
       <section class="canvas-column" aria-label="Simulation">
         <div class="canvas-shell" id="canvas">
           <div class="canvas-label">1 ft grid · Design mode</div>
-          <div class="tower" aria-label="Placeholder starter tower">
-            <svg viewBox="0 0 280 270" role="img" aria-label="Sample tower">
-              <g>
-                <line class="member" x1="48" y1="250" x2="48" y2="35"/>
-                <line class="member" x1="232" y1="250" x2="232" y2="35"/>
-                <line class="member" x1="48" y1="250" x2="232" y2="250"/>
-                <line class="member" x1="48" y1="178" x2="232" y2="178"/>
-                <line class="member" x1="48" y1="106" x2="232" y2="106"/>
-                <line class="member" x1="48" y1="35" x2="232" y2="35"/>
-                <line class="brace" x1="48" y1="178" x2="232" y2="106"/>
-                <line class="brace" x1="232" y1="178" x2="48" y2="106"/>
-              </g>
-              <rect class="mass" x="68" y="15" width="144" height="20" rx="5"/>
-              <rect class="mass" x="78" y="86" width="124" height="18" rx="5"/>
-              <rect class="mass" x="88" y="158" width="104" height="18" rx="5"/>
-              <g>
-                <circle class="joint-normal" cx="48" cy="250" r="7"/>
-                <circle class="joint-normal" cx="232" cy="250" r="7"/>
-                <circle class="joint-normal" cx="48" cy="178" r="7"/>
-                <circle class="joint-elevated" cx="232" cy="178" r="7"/>
-                <circle class="joint-normal" cx="48" cy="106" r="7"/>
-                <circle class="joint-elevated" cx="232" cy="106" r="7"/>
-                <circle class="joint-normal" cx="48" cy="35" r="7"/>
-                <circle class="joint-normal" cx="232" cy="35" r="7"/>
-              </g>
-            </svg>
-          </div>
+          <div class="empty-hint" id="emptyHint">Choose an element, then click the grid to place it</div>
+          <div class="design-layer" id="designLayer" aria-label="Structure placement area"></div>
           <div class="shake-table" aria-label="Placeholder shake table"></div>
           <div class="wave-legend" aria-label="Joint stress legend">
             <span><i class="legend-dot" style="background: var(--normal)"></i>Normal</span>
@@ -675,6 +726,145 @@
     const collapseBtn = document.getElementById("collapseBtn");
     const statusLine = document.getElementById("statusLine");
     const freeFallValue = document.getElementById("freeFallValue");
+    const canvas = document.getElementById("canvas");
+    const designLayer = document.getElementById("designLayer");
+    const emptyHint = document.getElementById("emptyHint");
+    const GRID = 20;
+    let selectedTool = "Column";
+    let selectedElement = null;
+    let isTesting = false;
+    let braceDirection = "right";
+
+    const elementSizes = {
+      "Column": { width: 10, height: 60 },
+      "Beam": { width: 60, height: 10 },
+      "Brace": { width: 72, height: 8 },
+      "Floor mass": { width: 50, height: 24 }
+    };
+
+    function snap(value) {
+      return Math.round(value / GRID) * GRID;
+    }
+
+    function updateEmptyHint() {
+      emptyHint.hidden = designLayer.children.length > 0;
+    }
+
+    function selectElement(element) {
+      if (selectedElement) selectedElement.classList.remove("selected");
+      selectedElement = element;
+      if (element) {
+        element.classList.add("selected");
+        statusLine.textContent = "Selected · " + element.dataset.tool;
+      }
+    }
+
+    function clampPosition(element, x, y) {
+      const width = element.offsetWidth;
+      const height = element.offsetHeight;
+      return {
+        x: Math.min(Math.max(0, snap(x)), Math.max(0, designLayer.clientWidth - width)),
+        y: Math.min(Math.max(0, snap(y)), Math.max(0, designLayer.clientHeight - height))
+      };
+    }
+
+    function addElement(type, x, y, options = {}) {
+      if (isTesting) return null;
+      const element = document.createElement("div");
+      element.className = "placed-element";
+      element.dataset.tool = type;
+
+      if (type === "Column") element.classList.add("column");
+      if (type === "Beam") element.classList.add("beam");
+      if (type === "Brace") {
+        element.classList.add("brace", options.direction || braceDirection);
+      }
+      if (type === "Floor mass") element.classList.add("floor-mass");
+
+      designLayer.appendChild(element);
+      const position = clampPosition(element, x - element.offsetWidth / 2, y - element.offsetHeight / 2);
+      element.style.left = position.x + "px";
+      element.style.top = position.y + "px";
+      element.dataset.x = String(position.x);
+      element.dataset.y = String(position.y);
+
+      element.addPointerCapture?.(0);
+      element.addEventListener("pointerdown", startDrag);
+      element.addEventListener("click", (event) => {
+        event.stopPropagation();
+        selectElement(element);
+      });
+
+      selectElement(element);
+      updateEmptyHint();
+      return element;
+    }
+
+    function startDrag(event) {
+      if (isTesting) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const element = event.currentTarget;
+      selectElement(element);
+      element.setPointerCapture(event.pointerId);
+      const rect = element.getBoundingRect?.() || element.getBoundingClientRect();
+      const offsetX = event.clientX - rect.left;
+      const offsetY = event.clientY - rect.top;
+
+      function move(event) {
+        const layerRect = designLayer.getBoundingClientRect();
+        const position = clampPosition(
+          element,
+          event.clientX - layerRect.left - offsetX,
+          event.clientY - layerRect.top - offsetY
+        );
+        element.style.left = position.x + "px";
+        element.style.top = position.y + "px";
+        element.dataset.x = String(position.x);
+        element.dataset.y = String(position.y);
+      }
+
+      function end() {
+        element.removeEventListener("pointermove", move);
+        element.removeEventListener("pointerup", end);
+        element.removeEventListener("pointercancel", end);
+      }
+
+      element.addEventListener("pointermove", move);
+      element.addEventListener("pointerup", end);
+      element.addEventListener("pointercancel", end);
+    }
+
+    function clearStructure() {
+      if (isTesting) return;
+      designLayer.replaceChildren();
+      selectElement(null);
+      updateEmptyHint();
+      statusLine.textContent = "Structure cleared · 0.00 s";
+    }
+
+    function loadStarter() {
+      if (isTesting) return;
+      clearStructure();
+      const left = 170;
+      const right = 410;
+      const positions = [
+        ["Column", left, 260],
+        ["Column", right, 260],
+        ["Column", left, 140],
+        ["Column", right, 140],
+        ["Beam", 290, 320],
+        ["Beam", 290, 200],
+        ["Beam", 290, 80],
+        ["Brace", 290, 260, "right"],
+        ["Brace", 290, 260, "left"],
+        ["Floor mass", 290, 300],
+        ["Floor mass", 290, 180]
+      ];
+      positions.forEach(([type, x, y, direction]) => addElement(type, x, y, { direction }));
+      selectElement(null);
+      statusLine.textContent = "Starter tower loaded · Ready to test";
+    }
 
     function bindRangeAndNumber(rangeId, numberId) {
       const range = document.getElementById(rangeId);
@@ -693,10 +883,37 @@
 
     document.querySelectorAll(".tool").forEach((tool) => {
       tool.addEventListener("click", () => {
+        if (isTesting) return;
         document.querySelectorAll(".tool").forEach((item) => item.classList.remove("active"));
         tool.classList.add("active");
+        selectedTool = tool.dataset.tool;
         statusLine.textContent = "Design mode · " + tool.dataset.tool + " selected";
       });
+    });
+
+    designLayer.addEventListener("pointerdown", (event) => {
+      if (isTesting) return;
+      if (event.target !== designLayer) return;
+      const rect = designLayer.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      if (selectedTool === "Brace") {
+        braceDirection = braceDirection === "right" ? "left" : "right";
+      }
+      addElement(selectedTool, x, y);
+      statusLine.textContent = "Design mode · " + selectedTool + " placed";
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (isTesting || (event.key !== "Delete" && event.key !== "Backspace")) return;
+      if (!selectedElement) return;
+      const activeTag = document.activeElement?.tagName;
+      if (activeTag === "INPUT") return;
+      event.preventDefault();
+      selectedElement.remove();
+      selectedElement = null;
+      updateEmptyHint();
+      statusLine.textContent = "Design mode · Element deleted";
     });
 
     const gravityModes = {
@@ -725,24 +942,33 @@
       collapseBtn.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
     });
 
-    document.getElementById("startBtn").addEventListener("click", () => {
-      statusLine.textContent = "Test in progress · 6.42 s";
-    });
+    function setTesting(testing) {
+      isTesting = testing;
+      document.querySelectorAll(".tool").forEach((tool) => { tool.disabled = testing; });
+      document.getElementById("starterBtn").disabled = testing;
+      document.getElementById("starterTop").disabled = testing;
+      document.getElementById("clearBtn").disabled = testing;
+      document.getElementById("topStartBtn").textContent = testing ? "Stop test" : "Start test";
+      document.getElementById("startBtn").textContent = testing ? "Test in progress" : "Start test";
+      document.querySelector(".canvas-label").textContent = testing
+        ? "1 ft grid · Test mode"
+        : "1 ft grid · Design mode";
+      if (testing) {
+        selectElement(null);
+        statusLine.textContent = "Test in progress · 6.42 s";
+      }
+    }
 
+    document.getElementById("startBtn").addEventListener("click", () => setTesting(!isTesting));
+    document.getElementById("topStartBtn").addEventListener("click", () => setTesting(!isTesting));
     document.getElementById("stopBtn").addEventListener("click", () => {
+      setTesting(false);
       statusLine.textContent = "Test stopped · 6.42 s";
     });
 
-    function loadStarter() {
-      statusLine.textContent = "Starter tower loaded · Ready to test";
-    }
-
     document.getElementById("starterBtn").addEventListener("click", loadStarter);
     document.getElementById("starterTop").addEventListener("click", loadStarter);
-
-    document.getElementById("clearBtn").addEventListener("click", () => {
-      statusLine.textContent = "Structure cleared · 0.00 s";
-    });
+    document.getElementById("clearBtn").addEventListener("click", clearStructure);
   </script>
 </body>
 </html>
