@@ -866,9 +866,107 @@
       }
     }
 
+    function getStructuralAnchorPoints() {
+      const points = [];
+      designLayer.querySelectorAll(".placed-element.column, .placed-element.beam").forEach((element) => {
+        const startX = Number(element.dataset.startX);
+        const startY = Number(element.dataset.startY);
+        const endX = Number(element.dataset.endX);
+        const endY = Number(element.dataset.endY);
+
+        if (Number.isFinite(startX) && Number.isFinite(startY)) points.push({ x: startX, y: startY });
+        if (Number.isFinite(endX) && Number.isFinite(endY)) points.push({ x: endX, y: endY });
+
+        const dx = endX - startX;
+        const dy = endY - startY;
+        const length = Math.hypot(dx, dy);
+        if (length > 0) {
+          const steps = Math.floor(length / GRID);
+          for (let step = 1; step < steps; step++) {
+            const t = (step * GRID) / length;
+            points.push({ x: snap(startX + dx * t), y: snap(startY + dy * t) });
+          }
+        }
+      });
+
+      const unique = [];
+      points.forEach((point) => {
+        if (!unique.some((other) => Math.abs(other.x - point.x) < 1 && Math.abs(other.y - point.y) < 1)) {
+          unique.push(point);
+        }
+      });
+      return unique;
+    }
+
+    function snapBracePoint(x, y) {
+      const anchors = getStructuralAnchorPoints();
+      let nearest = null;
+      let nearestDistance = 26;
+      anchors.forEach((anchor) => {
+        const distance = Math.hypot(anchor.x - x, anchor.y - y);
+        if (distance < nearestDistance) {
+          nearest = anchor;
+          nearestDistance = distance;
+        }
+      });
+      return nearest;
+    }
+
+    function handleBraceAnchor(x, y) {
+      const anchor = snapBracePoint(x, y);
+      if (!anchor) {
+        statusLine.textContent = "Brace placement · Click a column or beam anchor";
+        return;
+      }
+
+      if (!pendingSegment) {
+        pendingSegment = anchor;
+        segmentPreview = document.createElement("div");
+        segmentPreview.className = "segment-preview brace";
+        segmentPreview.style.left = anchor.x + "px";
+        segmentPreview.style.top = (anchor.y - 4) + "px";
+        segmentPreview.style.width = GRID + "px";
+        designLayer.appendChild(segmentPreview);
+        statusLine.textContent = "Brace placement · Click a second column or beam anchor";
+      } else if (pendingSegment.x === anchor.x && pendingSegment.y === anchor.y) {
+        statusLine.textContent = "Brace placement · Choose a different anchor";
+      } else {
+        const element = addBrace(pendingSegment, anchor);
+        cancelPendingSegment();
+        statusLine.textContent = element
+          ? "Design mode · Brace placed"
+          : "Brace placement · Choose points farther apart";
+      }
+    }
+
     function updateSegmentPreview(x, y) {
       if (!pendingSegment || !segmentPreview) return;
       const start = pendingSegment;
+      if (selectedTool === "Brace") {
+        const end = snapBracePoint(x, y);
+        if (!end) {
+          segmentPreview.style.opacity = "0";
+          statusLine.textContent = "Brace preview · Choose a point on a column or beam";
+          return;
+        }
+        segmentPreview.style.opacity = "1";
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        const length = Math.hypot(dx, dy);
+        if (length <= 1) {
+          segmentPreview.style.opacity = "0";
+          return;
+        }
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+        segmentPreview.style.left = start.x + "px";
+        segmentPreview.style.top = (start.y - 4) + "px";
+        segmentPreview.style.width = length + "px";
+        segmentPreview.style.height = "8px";
+        segmentPreview.style.transform = "rotate(" + angle + "deg)";
+        statusLine.textContent = "Brace preview · " + (length / GRID).toFixed(1) + " ft";
+        return;
+      }
+
       let endX = snap(x);
       let endY = snap(y);
 
@@ -975,6 +1073,47 @@
       return element;
     }
 
+    function addBrace(start, end) {
+      if (isTesting) return null;
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const length = Math.hypot(dx, dy);
+      if (length <= GRID) return null;
+
+      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+      const element = document.createElement("div");
+      element.className = "placed-element brace";
+      element.dataset.tool = "Brace";
+      element.dataset.startX = String(start.x);
+      element.dataset.startY = String(start.y);
+      element.dataset.endX = String(end.x);
+      element.dataset.endY = String(end.y);
+      element.style.left = start.x + "px";
+      element.style.top = (start.y - 4) + "px";
+      element.style.width = length + "px";
+      element.style.height = "8px";
+      element.style.transform = "rotate(" + angle + "deg)";
+      element.style.transformOrigin = "0 50%";
+
+      const label = document.createElement("span");
+      label.className = "segment-length";
+      label.textContent = (length / GRID).toFixed(1) + " ft";
+      label.style.left = "50%";
+      label.style.top = "-18px";
+      label.style.transform = "translateX(-50%)";
+      element.appendChild(label);
+
+      designLayer.appendChild(element);
+      element.addEventListener("pointerdown", startDrag);
+      element.addEventListener("click", (event) => {
+        event.stopPropagation();
+        selectElement(element);
+      });
+      selectElement(element);
+      updateEmptyHint();
+      return element;
+    }
+
     function editSegmentEndpoint(event, element, endpoint) {
       if (isTesting) return;
       event.preventDefault();
@@ -1054,6 +1193,17 @@
 
     function startDrag(event) {
       if (isTesting) return;
+      if (selectedTool === "Brace") {
+        if (event.target.closest(".placed-element.column, .placed-element.beam")) {
+          event.preventDefault();
+          event.stopPropagation();
+          const rect = designLayer.getBoundingClientRect();
+          const x = snap(event.clientX - rect.left);
+          const y = snap(event.clientY - rect.top);
+          handleBraceAnchor(x, y);
+        }
+        return;
+      }
       if (event.target.classList?.contains("endpoint")) return;
       event.preventDefault();
       event.stopPropagation();
@@ -1109,9 +1259,9 @@
       addSegment("Beam", { x: left, y: bottom - 20 }, { x: right, y: bottom - 20 });
       addSegment("Beam", { x: left, y: bottom - 140 }, { x: right, y: bottom - 140 });
       addSegment("Beam", { x: left, y: 60 }, { x: right, y: 60 });
+      addBrace({ x: left, y: bottom - 20 }, { x: right, y: bottom - 140 });
+      addBrace({ x: right, y: bottom - 20 }, { x: left, y: bottom - 140 });
       const positions = [
-        ["Brace", centerX, bottom - 80, "right"],
-        ["Brace", centerX, bottom - 80, "left"],
         ["Floor mass", centerX, bottom - 48],
         ["Floor mass", centerX, bottom - 168]
       ];
@@ -1148,23 +1298,23 @@
 
     designLayer.addEventListener("pointerdown", (event) => {
       if (isTesting) return;
-      if (event.target !== designLayer) return;
+      if (event.target !== designLayer && selectedTool !== "Brace") return;
       const rect = designLayer.getBoundingClientRect();
-      const x = snap(event.clientX - rect.left);
-      const y = snap(event.clientY - rect.top);
+      const rawX = snap(event.clientX - rect.left);
+      const rawY = snap(event.clientY - rect.top);
 
       if (selectedTool === "Column" || selectedTool === "Beam") {
         if (!pendingSegment) {
-          pendingSegment = { x, y };
+          pendingSegment = { x: rawX, y: rawY };
           segmentPreview = document.createElement("div");
           segmentPreview.className = "segment-preview " + selectedTool.toLowerCase();
-          segmentPreview.style.left = x + "px";
-          segmentPreview.style.top = (y - 4) + "px";
+          segmentPreview.style.left = rawX + "px";
+          segmentPreview.style.top = (rawY - 4) + "px";
           segmentPreview.style.width = GRID + "px";
           designLayer.appendChild(segmentPreview);
           statusLine.textContent = "Design mode · Click end point for " + selectedTool.toLowerCase();
         } else {
-          const element = addSegment(selectedTool, pendingSegment, { x, y });
+          const element = addSegment(selectedTool, pendingSegment, { x: rawX, y: rawY });
           cancelPendingSegment();
           statusLine.textContent = element
             ? "Design mode · " + selectedTool + " placed"
@@ -1174,9 +1324,10 @@
       }
 
       if (selectedTool === "Brace") {
-        braceDirection = braceDirection === "right" ? "left" : "right";
+        handleBraceAnchor(rawX, rawY);
+        return;
       }
-      addElement(selectedTool, x, y);
+      addElement(selectedTool, rawX, rawY);
       statusLine.textContent = "Design mode · " + selectedTool + " placed";
     });
 

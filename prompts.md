@@ -271,3 +271,13 @@
   beams and columns.
 - Worked: Browser checks passed for live beam and column previews, placed
   segment length labels, and dragging endpoint handles to resize both types.
+
+### Request 29
+
+- Asked: Require braces to snap to columns and beams.
+- Changed: Updated `index.html` so brace placement uses two snapped anchor
+  points on structural beam or column segments, with live diagonal preview
+  and invalid-anchor feedback.
+- Worked: Browser and direct interaction checks passed for snap-point
+  detection, live brace preview, and brace creation between beam/column
+  anchors.
