@@ -517,3 +517,133 @@
 - Changed: No application or spec files were changed. Recorded that the
   browser-tested node placement behavior was approved.
 - Worked: Yes. The user confirmed the fix and node placement behavior.
+
+### Request 54
+
+- Asked: Align beams and columns on grid lines and make the shown tower the
+  default tower.
+- Changed: Updated the project spec to require centered 1 ft grid node
+  connections and a starter tower loaded on app initialization.
+- Changed again: Updated starter geometry to full-height columns at left/right
+  grid nodes with beams at the bottom, middle, and top levels, aligned on exact
+  grid coordinates. Beam and column placement now uses the shared grid alignment
+  helper, and the starter tower loads on initialization.
+- Worked: Browser verification passed. The starter tower now has columns at
+  x=180 and x=420 from y=240 to y=480, with beams at y=240, y=360, and y=480;
+  all endpoints are exact multiples of the 20 px grid.
+
+### Request 55
+
+- Asked: Correct remaining node misalignment and keep the starter tower
+  identical on every load.
+- Changed: Tightened brace and beam centerlines to 10 px symmetrical
+  geometries, preserved exact grid data coordinates, and ensured the starter
+  tower loads at initialization and on reload.
+- Changed again: Replaced percentage-based endpoint handle offsets with exact
+  pixel centers, including column tops/bottoms and beam/brace ends.
+- Changed again: Added runtime endpoint alignment against the rendered design
+  layer and exact stored node coordinates. Reload verification now reports
+  matching coordinates for all starter columns, beams, and braces.
+- Worked: Browser verification passed; all starter node handles match their
+  exact 20 px grid coordinates.
+
+### Request 56
+
+- Asked: Change the starter tower to the requested default, align the bottom
+  beam exactly with the bottom grid line, move the table down slightly so the
+  beam sits visibly on top, and remove the legend from the structure area.
+- Changed: Updated the project spec and app geometry so the design layer spans
+  the full canvas, the table shifts down 20 px, and the legend moves to the
+  top-right of the canvas.
+- Changed again: Corrected the bottom beam center so it is exactly at y=500,
+  matching the table top and bottom grid line. The design layer now spans the
+  full canvas height and the table remains visible below the beam.
+- Worked: Browser verification passed. The bottom beam center is y=500, the
+  table top is y=500, and the legend is at the top-right.
+
+### Request 57
+
+- Asked: Move the full build and shake table upward slightly, keeping the
+  visual bottom grid line lower than the structural build space and table.
+- Changed: Updated the project spec and moved the shake table top upward by
+  setting it 20 px above the canvas bottom.
+- Changed again: Browser verification confirmed the table top and bottom beam
+  align at y=460, with the lower grid region remaining below the build.
+- Worked: The upward table/build shift is verified.
+
+### Request 58
+
+- Asked: Make the default tower look exactly like the currently verified
+  600 px canvas layout.
+- Changed: Updated the project spec with exact default node coordinates:
+  columns at x=180/420, beams at y=220/340/460, table top y=460, floor masses
+  at x=300/y=440/320/200, and the legend in the top-right.
+- Worked: Spec change is complete and awaiting implementation.
+
+### Request 59
+
+- Asked: Make braces align upright while preserving their node positions.
+- Changed: Updated the project spec and added brace geometry normalization
+  so the upper node is the visual start and brace labels are counter-rotated
+  to remain upright.
+- Changed again: Browser verification confirmed both starter braces use upper
+  nodes as visual starts and length labels counter-rotate exactly to remain
+  upright while node coordinates stay unchanged.
+- Worked: Browser verification passed.
+
+### Request 60
+
+- Asked: Restore the default tower after the brace change so masses sit directly
+  on the floor beams and braces render above the structure.
+- Changed: Updated the spec, fixed starter masses to 40×20 px with bottom edges
+  aligned to beam centerlines, and raised brace stacking above beams and masses.
+- Changed again: Browser screenshot confirmed 40×20 px masses sit directly on
+  the bottom, middle, and top beams, and braces render above those members.
+- Worked: Browser verification passed.
+
+### Request 61
+
+- Asked: Make the default floor masses fill most of each floor width and place
+  the masses behind the structural members.
+- Changed: Updated the spec and starter tower so each mass is 220×20 px,
+  spans nearly the full bay, sits behind columns/beams/braces, and is added
+  before structural elements to preserve the stacking order.
+- Worked: Implementation is complete and browser verification is in progress.
+
+### Request 62
+
+- Asked: Make the default floor masses fill most of the floor width and place
+  them behind beams, columns, and braces.
+- Changed: Updated the starter masses to 220×20 px panels spanning each bay,
+  inserted them before structural members, and assigned masses z-index 1 with
+  structural members z-index 3 and braces z-index 5.
+- Worked: Browser verification passed. The three masses are 220 px wide,
+  behind the structure, with no pending placement or selected member state.
+
+### Request 63
+
+- Asked: Center the floor masses better and prevent beam/column misalignment
+  after clicking or dragging.
+- Changed: Updated the spec and starter mass width, and replaced beam/column
+  drag delta updates with snapped endpoint recomputation and exact visual
+  positioning.
+- Worked: Implementation is complete and browser verification is in progress.
+
+### Request 64
+
+- Asked: Center the masses better and keep beams/columns grid-aligned after
+  dragging or clicking.
+- Changed: Set each default floor mass to exactly 220 px wide at left=190,
+  center x=300, and replaced beam/column drag updates with snapped endpoint
+  recomputation.
+- Worked: Browser verification passed for mass center and the right column
+  remained at x=420 after drag testing.
+
+### Request 65
+
+- Asked: Reset the starter braces to one top-level brace and one bottom-level
+  brace.
+- Changed: Updated the project spec and starter geometry to use braces from
+  left/top to right/middle and left/bottom to right/middle.
+- Worked: Browser verification passed. The reload has exactly two braces:
+  180,220–420,340 and 420,340–180,460.

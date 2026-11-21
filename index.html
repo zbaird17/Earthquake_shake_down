@@ -215,7 +215,7 @@
     .tower svg { width: 100%; height: 100%; overflow: visible; }
     .design-layer {
       position: absolute;
-      inset: 0 0 42px;
+      inset: 0;
       z-index: 3;
     }
 
@@ -238,6 +238,7 @@
     .placed-element.column {
       width: 10px;
       height: 60px;
+      z-index: 3;
       border: 2px solid #17233b;
       border-radius: 3px;
       background: #6ea3cf;
@@ -246,6 +247,7 @@
     .placed-element.beam {
       width: 60px;
       height: 10px;
+      z-index: 3;
       border: 2px solid #17233b;
       border-radius: 3px;
       background: #91b5d6;
@@ -258,6 +260,7 @@
       border-radius: 4px;
       background: #b6c9dc;
       transform-origin: 50% 50%;
+      z-index: 5;
     }
 
     .placed-element.brace.right { transform: rotate(45deg); }
@@ -270,6 +273,7 @@
       border-radius: 7px;
       background: #ffb703;
       box-shadow: 3px 3px 0 rgba(23, 35, 59, 0.18);
+      z-index: 1;
     }
 
     .placement-preview {
@@ -363,7 +367,6 @@
       box-shadow: 0 1px 4px rgba(23, 35, 59, 0.25);
       cursor: crosshair;
       touch-action: none;
-      transform: translate(-50%, -50%);
     }
 
     .empty-hint {
@@ -400,7 +403,8 @@
     .wave-legend {
       position: absolute;
       right: 10px;
-      bottom: 12px;
+      top: 12px;
+      bottom: auto;
       z-index: 6;
       display: flex;
       gap: 10px;
@@ -860,6 +864,65 @@
       return Math.round(value / GRID) * GRID;
     }
 
+    function alignEndpointHandles(element) {
+      if (!element) return;
+      const layerRect = designLayer.getBoundingClientRect();
+      const startX = Number(element.dataset.startX);
+      const startY = Number(element.dataset.startY);
+      const endX = Number(element.dataset.endX);
+      const endY = Number(element.dataset.endY);
+      const type = element.dataset.tool;
+      const startHandle = element.querySelector(".endpoint.start");
+      const endHandle = element.querySelector(".endpoint.end");
+
+      [[startHandle, startX, startY], [endHandle, endX, endY]].forEach(([handle, nodeX, nodeY]) => {
+        if (!handle || !Number.isFinite(nodeX) || !Number.isFinite(nodeY)) return;
+        const rect = handle.getBoundingClientRect();
+        const handleX = rect.left + rect.width / 2;
+        const handleY = rect.top + rect.height / 2;
+        let dx = layerRect.left + nodeX - handleX;
+        let dy = layerRect.top + nodeY - handleY;
+
+        if (type === "Brace") {
+          const angleText = element.style.transform.match(/rotate\(([-0-9.]+)deg\)/);
+          const angle = angleText ? Number(angleText[1]) * Math.PI / 180 : 0;
+          const localDx = dx * Math.cos(angle) + dy * Math.sin(angle);
+          const localDy = -dx * Math.sin(angle) + dy * Math.cos(angle);
+          dx = localDx;
+          dy = localDy;
+        }
+
+        const left = parseFloat(handle.style.left) || 0;
+        const top = parseFloat(handle.style.top) || 0;
+        handle.style.left = (left + dx) + "px";
+        handle.style.top = (top + dy) + "px";
+      });
+    }
+
+    function alignGridMember(type, startX, startY, endX, endY) {
+      startX = snap(startX);
+      startY = snap(startY);
+      endX = snap(endX);
+      endY = snap(endY);
+      if (type === "Column") endX = startX;
+      if (type === "Beam") endY = startY;
+      return { startX, startY, endX, endY };
+    }
+
+    function getUprightBraceGeometry(start, end) {
+      if (start.y < end.y) return { start, end };
+      if (end.y < start.y) return { start: end, end: start };
+      if (start.x <= end.x) return { start, end };
+      return { start: end, end: start };
+    }
+
+    function keepBraceLabelUpright(element, angle) {
+      const label = element.querySelector(".segment-length");
+      if (!label) return;
+      label.style.transform = "translateX(-50%) rotate(" + (-angle) + "deg)";
+      label.style.transformOrigin = "50% 50%";
+    }
+
     function snapPlacementPoint(x, y) {
       const tableTop = getTableBoundary();
       return {
@@ -879,13 +942,13 @@
       if (!shakeTable || !canvas) return;
       const desiredHeight = snap(Math.max(280, Math.min(500, canvas.clientWidth * 5 / 6)));
       canvas.style.height = desiredHeight + "px";
-      designLayer.style.bottom = "20px";
+      designLayer.style.bottom = "0";
       const tableWidth = Math.min(360, snap(canvas.clientWidth));
       const left = snap((canvas.clientWidth - tableWidth) / 2);
       shakeTable.style.width = tableWidth + "px";
       shakeTable.style.left = left + "px";
       shakeTable.style.transform = "none";
-      shakeTable.style.bottom = "0";
+      shakeTable.style.bottom = "20px";
     }
 
     alignShakeTable();
@@ -933,6 +996,17 @@
       const position = clampPosition(element, x - element.offsetWidth / 2, y - element.offsetHeight / 2);
       element.style.left = position.x + "px";
       element.style.top = position.y + "px";
+      if (type === "Floor mass" && options.width && options.height) {
+        element.style.width = options.width + "px";
+        element.style.height = options.height + "px";
+        const resizedPosition = clampPosition(
+          element,
+          x - options.width / 2,
+          y - options.height
+        );
+        element.style.left = resizedPosition.x + "px";
+        element.style.top = resizedPosition.y + "px";
+      }
       element.dataset.x = String(position.x);
       element.dataset.y = String(position.y);
 
@@ -999,7 +1073,7 @@
       } else if (type === "Brace") {
         const anchor = snapBracePoint(x, y);
         placementGhost.style.width = "72px";
-        placementGhost.style.height = "8px";
+        placementGhost.style.height = "10px";
         placementGhost.style.transform = "rotate(-45deg)";
         placementGhost.style.transformOrigin = "0 50%";
         placementGhost.style.opacity = anchor ? "0.92" : "0.28";
@@ -1128,7 +1202,7 @@
         segmentPreview = document.createElement("div");
         segmentPreview.className = "segment-preview brace";
         segmentPreview.style.left = anchor.x + "px";
-        segmentPreview.style.top = (anchor.y - 4) + "px";
+        segmentPreview.style.top = (anchor.y - 5) + "px";
         segmentPreview.style.width = GRID + "px";
         designLayer.appendChild(segmentPreview);
         statusLine.textContent = "Brace placement · Click a second column or beam anchor";
@@ -1163,9 +1237,9 @@
         }
         const angle = Math.atan2(dy, dx) * 180 / Math.PI;
         segmentPreview.style.left = start.x + "px";
-        segmentPreview.style.top = (start.y - 4) + "px";
+        segmentPreview.style.top = (start.y - 5) + "px";
         segmentPreview.style.width = length + "px";
-        segmentPreview.style.height = "8px";
+        segmentPreview.style.height = "10px";
         segmentPreview.style.transform = "rotate(" + angle + "deg)";
         statusLine.textContent = "Brace preview · " + (length / GRID).toFixed(1) + " ft";
         return;
@@ -1199,9 +1273,9 @@
         segmentPreview.style.transform = "none";
       } else {
         segmentPreview.style.left = Math.min(start.x, endX) + "px";
-        segmentPreview.style.top = (start.y >= getTableBoundary() ? getTableBoundary() - 8 : start.y - 4) + "px";
+        segmentPreview.style.top = (start.y >= getTableBoundary() ? getTableBoundary() - 5 : start.y - 5) + "px";
         segmentPreview.style.width = length + "px";
-        segmentPreview.style.height = "8px";
+        segmentPreview.style.height = "10px";
         segmentPreview.style.transform = "none";
       }
 
@@ -1228,6 +1302,11 @@
         endX = endNode.x;
         endY = startY;
       }
+      const aligned = alignGridMember(type, startX, startY, endX, endY);
+      startX = aligned.startX;
+      startY = aligned.startY;
+      endX = aligned.endX;
+      endY = aligned.endY;
 
       const tableTop = getTableBoundary();
       startY = Math.min(startY, tableTop);
@@ -1246,7 +1325,7 @@
 
       if (type === "Beam") {
         element.style.left = Math.min(startX, endX) + "px";
-        element.style.top = (startY >= tableTop ? tableTop - 10 : startY - 5) + "px";
+        element.style.top = (startY - 5) + "px";
       } else {
         element.style.left = (startX - 5) + "px";
         element.style.top = Math.min(startY, endY) + "px";
@@ -1268,24 +1347,25 @@
       label.style.transform = type === "Beam" ? "translateX(-50%)" : "translateY(-50%)";
       element.appendChild(label);
 
-      const startHandle = document.createElement("button");
-      startHandle.type = "button";
+      const startHandle = document.createElement("div");
+      startHandle.setAttribute("role", "button");
       startHandle.className = "endpoint start";
       startHandle.setAttribute("aria-label", "Edit start of " + type);
-      startHandle.style.left = type === "Column" ? "50%" : "0";
-      startHandle.style.top = type === "Column" ? "0" : "50%";
+      startHandle.style.left = type === "Column" ? "-2px" : "-7px";
+      startHandle.style.top = type === "Column" ? "-7px" : "-2px";
 
-      const endHandle = document.createElement("button");
-      endHandle.type = "button";
+      const endHandle = document.createElement("div");
+      endHandle.setAttribute("role", "button");
       endHandle.className = "endpoint end";
       endHandle.setAttribute("aria-label", "Edit end of " + type);
-      endHandle.style.left = type === "Column" ? "50%" : "100%";
-      endHandle.style.top = type === "Column" ? "100%" : "50%";
+      endHandle.style.left = type === "Column" ? "-2px" : (length - 7) + "px";
+      endHandle.style.top = type === "Column" ? (length - 7) + "px" : "-2px";
 
       element.appendChild(startHandle);
       element.appendChild(endHandle);
       startHandle.addEventListener("pointerdown", (event) => editSegmentEndpoint(event, element, "start"));
       endHandle.addEventListener("pointerdown", (event) => editSegmentEndpoint(event, element, "end"));
+      alignEndpointHandles(element);
 
       element.addEventListener("pointerdown", startDrag);
       element.addEventListener("click", (event) => {
@@ -1302,6 +1382,9 @@
       const tableTop = getTableBoundary();
       start = { x: snap(start.x), y: Math.min(snap(start.y), tableTop) };
       end = { x: snap(end.x), y: Math.min(snap(end.y), tableTop) };
+      const upright = getUprightBraceGeometry(start, end);
+      start = upright.start;
+      end = upright.end;
       const dx = end.x - start.x;
       const dy = end.y - start.y;
       const length = Math.hypot(dx, dy);
@@ -1316,9 +1399,9 @@
       element.dataset.endX = String(end.x);
       element.dataset.endY = String(end.y);
       element.style.left = start.x + "px";
-      element.style.top = (start.y - 4) + "px";
+      element.style.top = (start.y - 5) + "px";
       element.style.width = length + "px";
-      element.style.height = "8px";
+      element.style.height = "10px";
       element.style.transform = "rotate(" + angle + "deg)";
       element.style.transformOrigin = "0 50%";
 
@@ -1329,20 +1412,21 @@
       label.style.top = "-18px";
       label.style.transform = "translateX(-50%)";
       element.appendChild(label);
+      keepBraceLabelUpright(element, angle);
 
       const startHandle = document.createElement("button");
       startHandle.type = "button";
       startHandle.className = "endpoint start";
       startHandle.setAttribute("aria-label", "Edit start of Brace");
-      startHandle.style.left = "0";
-      startHandle.style.top = "50%";
+      startHandle.style.left = "-7px";
+      startHandle.style.top = "-2px";
 
       const endHandle = document.createElement("button");
       endHandle.type = "button";
       endHandle.className = "endpoint end";
       endHandle.setAttribute("aria-label", "Edit end of Brace");
-      endHandle.style.left = "100%";
-      endHandle.style.top = "50%";
+      endHandle.style.left = (length - 7) + "px";
+      endHandle.style.top = "-2px";
 
       element.appendChild(startHandle);
       element.appendChild(endHandle);
@@ -1350,6 +1434,7 @@
       endHandle.addEventListener("pointerdown", (event) => editSegmentEndpoint(event, element, "end"));
 
       designLayer.appendChild(element);
+      alignEndpointHandles(element);
       element.addEventListener("pointerdown", startDrag);
       element.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -1465,26 +1550,40 @@
           const braceLength = Math.hypot(braceDx, braceDy);
           const braceAngle = Math.atan2(braceDy, braceDx) * 180 / Math.PI;
           element.style.left = startX + "px";
-          element.style.top = (startY - 4) + "px";
+          element.style.top = (startY - 5) + "px";
           element.style.width = braceLength + "px";
-          element.style.height = "8px";
+          element.style.height = "10px";
           element.style.transform = "rotate(" + braceAngle + "deg)";
           element.style.transformOrigin = "0 50%";
+          keepBraceLabelUpright(element, braceAngle);
+          const braceStartHandle = element.querySelector(".endpoint.start");
+          const braceEndHandle = element.querySelector(".endpoint.end");
+          if (braceStartHandle) { braceStartHandle.style.left = "-7px"; braceStartHandle.style.top = "-2px"; }
+          if (braceEndHandle) { braceEndHandle.style.left = (braceLength - 7) + "px"; braceEndHandle.style.top = "-2px"; }
           if (label) label.textContent = (braceLength / GRID).toFixed(1) + " ft";
           statusLine.textContent = "Brace length · " + (braceLength / GRID).toFixed(1) + " ft";
         } else if (type === "Beam") {
           element.style.left = Math.min(startX, endX) + "px";
-          element.style.top = (startY >= tableTop ? tableTop - 10 : startY - 5) + "px";
+          element.style.top = (startY - 5) + "px";
           element.style.width = length + "px";
           element.style.height = "10px";
+          const startHandle = element.querySelector(".endpoint.start");
+          const endHandle = element.querySelector(".endpoint.end");
+          if (startHandle) { startHandle.style.left = "-7px"; startHandle.style.top = "-2px"; }
+          if (endHandle) { endHandle.style.left = (length - 7) + "px"; endHandle.style.top = "-2px"; }
         } else {
           element.style.left = (startX - 5) + "px";
           element.style.top = Math.min(startY, endY) + "px";
           element.style.width = "10px";
           element.style.height = length + "px";
+          const startHandle = element.querySelector(".endpoint.start");
+          const endHandle = element.querySelector(".endpoint.end");
+          if (startHandle) { startHandle.style.left = "-2px"; startHandle.style.top = "-7px"; }
+          if (endHandle) { endHandle.style.left = "-2px"; endHandle.style.top = (length - 7) + "px"; }
         }
 
         if (label && type !== "Brace") label.textContent = (length / GRID).toFixed(0) + " ft";
+        alignEndpointHandles(element);
         statusLine.textContent = type + " length · " + (length / GRID).toFixed(0) + " ft";
       }
 
@@ -1584,10 +1683,36 @@
           const startY = Number(element.dataset.startY || 0);
           const endX = Number(element.dataset.endX || 0);
           const endY = Number(element.dataset.endY || 0);
-          element.dataset.startX = String(snap(startX + dx));
-          element.dataset.startY = String(snap(startY + dy));
-          element.dataset.endX = String(snap(endX + dx));
-          element.dataset.endY = String(snap(endY + dy));
+          if (element.dataset.tool === "Beam") {
+            const newStartX = snap(position.x);
+            const newStartY = snap(position.y + 5);
+            const length = snap(endX - startX);
+            const newEndX = snap(newStartX + length);
+            const tableTop = getTableBoundary();
+            if (newEndX <= designLayer.clientWidth && newStartY <= tableTop) {
+              element.dataset.startX = String(newStartX);
+              element.dataset.startY = String(newStartY);
+              element.dataset.endX = String(newEndX);
+              element.dataset.endY = String(newStartY);
+              element.style.left = newStartX + "px";
+              element.style.top = (newStartY - 5) + "px";
+            }
+          } else {
+            const newStartX = snap(position.x + 5);
+            const newStartY = snap(startY + dy);
+            const newEndY = snap(endY + dy);
+            const tableTop = getTableBoundary();
+            if (newStartX >= 0 && newStartX <= designLayer.clientWidth &&
+                newStartY >= 0 && newEndY <= tableTop) {
+              element.dataset.startX = String(newStartX);
+              element.dataset.startY = String(newStartY);
+              element.dataset.endX = String(newStartX);
+              element.dataset.endY = String(newEndY);
+              element.style.left = (newStartX - 5) + "px";
+              element.style.top = Math.min(newStartY, newEndY) + "px";
+            }
+          }
+          alignEndpointHandles(element);
         }
       }
 
@@ -1619,18 +1744,33 @@
       const left = centerX - 120;
       const right = centerX + 120;
       const bottom = getTableBoundary();
-      addSegment("Column", { x: left, y: bottom - 120 }, { x: left, y: bottom });
-      addSegment("Column", { x: right, y: bottom - 120 }, { x: right, y: bottom });
-      addSegment("Beam", { x: left, y: bottom }, { x: right, y: bottom });
-      addSegment("Beam", { x: left, y: bottom - 120 }, { x: right, y: bottom - 120 });
-      addSegment("Beam", { x: left, y: 60 }, { x: right, y: 60 });
-      addBrace({ x: left, y: bottom }, { x: right, y: bottom - 120 });
-      addBrace({ x: right, y: bottom }, { x: left, y: bottom - 120 });
+      const middle = bottom - 120;
+      const top = bottom - 240;
+
       const positions = [
-        ["Floor mass", centerX, bottom - 60],
-        ["Floor mass", centerX, bottom - 180]
+        ["Floor mass", centerX, bottom],
+        ["Floor mass", centerX, middle],
+        ["Floor mass", centerX, top]
       ];
-      positions.forEach(([type, x, y, direction]) => addElement(type, x, y, { direction }));
+      positions.forEach(([type, x, y, direction]) => {
+        const mass = addElement(type, x, y, {
+          direction,
+          width: right - left - 20,
+          height: 20
+        });
+        if (mass) {
+          mass.style.left = (centerX - (right - left - 20) / 2) + "px";
+          mass.style.top = (y - 20) + "px";
+        }
+      });
+
+      addSegment("Column", { x: left, y: top }, { x: left, y: bottom });
+      addSegment("Column", { x: right, y: top }, { x: right, y: bottom });
+      addSegment("Beam", { x: left, y: bottom }, { x: right, y: bottom });
+      addSegment("Beam", { x: left, y: middle }, { x: right, y: middle });
+      addSegment("Beam", { x: left, y: top }, { x: right, y: top });
+      addBrace({ x: left, y: top }, { x: right, y: middle });
+      addBrace({ x: left, y: bottom }, { x: right, y: middle });
       selectElement(null);
       statusLine.textContent = "Starter tower loaded · Ready to test";
     }
@@ -1893,6 +2033,7 @@
     document.getElementById("starterBtn").addEventListener("click", loadStarter);
     document.getElementById("starterTop").addEventListener("click", loadStarter);
     document.getElementById("clearBtn").addEventListener("click", clearStructure);
+    loadStarter();
   </script>
 </body>
 </html>
