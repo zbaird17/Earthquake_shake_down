@@ -165,3 +165,12 @@
   wind and fire.
 - Worked: The Out of Scope section was revised without changing or building
   other application components.
+
+### Request 19
+
+- Asked: Review the complete spec and identify improvements.
+- Changed: No spec edit was requested or made. A whole-document consistency
+  review identified follow-up needs around defaults, editing behavior, cost
+  interpretation, gravity switching, and test-state handling.
+- Worked: The review identified ambiguous defaults and editing behavior as the
+  first priority.
