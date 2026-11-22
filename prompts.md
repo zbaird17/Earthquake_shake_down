@@ -244,7 +244,7 @@
 - Worked: Responsive sizing was implemented. The starter tower now needs
   dynamic center-based placement verification.
 
-### Request 26 verification
+### Request 26 - Verification
 
 - Changed: Verified the canvas at a 620 px viewport: it shrinks to the available
   width, has no horizontal overflow, remains centered, and the starter tower
@@ -675,3 +675,95 @@
   the live segment preview remains after the first brace click.
 - Worked: Browser verification passed. Brace placement showed one anchor dot
   before the first click, then only one live segment preview after it.
+
+### Request 69
+
+- Asked: Commit Stage 3 and build Stage 4 basic physics and shake motion.
+- Changed: Committed Stage 3 as c01f90d, updated the Stage 4 spec, and added
+  Matter.js engine setup, gravity scaling, sine-table motion, elapsed and peak
+  acceleration readouts, Start/Stop state, and test editing locks.
+- Worked: Browser verification passed; Start changed test mode and disabled
+  editing, elapsed/peak readouts advanced, and Stop released controls and reset
+  the table position.
+
+### Request 70
+
+- Asked: Split each default side column into two 6 ft segments with a middle
+  node and prevent braces from teleporting during tests.
+- Changed: Updated the project spec and starter tower with four 6 ft column
+  segments and a y=340 shared node. Strengthened Matter.js shared-node and
+  bottom-table constraints.
+- Changed again: Locked brace DOM geometry to stored endpoint nodes during test
+  synchronization, preventing free-body brace teleportation.
+- Worked: Browser verification passed. Reload showed four 6 ft columns and
+  braces remained in their exact node rectangles during a running test.
+
+### Request 71
+
+- Asked: Attach floor masses to beams so they do not slide independently.
+- Changed: Updated the project spec and Matter.js setup to constrain each
+  floor mass to its nearest beam body at beam endpoint nodes.
+- Worked: Browser verification passed. During a running test, masses stayed near
+  their beam floors instead of sliding freely away.
+
+### Request 72
+
+- Asked: Undo brace static locking and make braces move as rigid bodies with the
+  rest of the structure.
+- Changed: Restored brace DOM synchronization to Matter.js body position and
+  angle, and updated the spec to require zero-length node constraints at both
+  brace endpoints.
+- Changed again: Corrected brace visual interpolation to follow body
+  displacement between stored endpoints instead of free body bounds.
+- Worked: Browser verification passed; both braces remained near their shared
+  node bays and rotated with the frame during a running test.
+
+### Request 73
+
+- Asked: Fix the prompt history because it contained an out-of-order duplicate
+  request number.
+- Changed: Removed the duplicate Request 71 entry appended after Request 72,
+  preserving Request 71 as the floor-mass attachment entry and Request 72 as
+  the brace dynamic-body entry.
+- Worked: The prompt sequence now remains chronological through Request 72,
+  with this cleanup recorded as Request 73.
+
+### Request 74
+
+- Asked: Fix braces that detached or appeared attached at the middle to the
+  floor masses.
+- Changed: Replaced brace endpoint interpolation with rigid rotation of both
+  original node positions around the brace body's current center, and added
+  exact stored-node tracking for visual endpoint placement.
+- Changed again: Removed braces as independent Matter.js bodies. Braces now
+  render dynamically between the live beam/column node positions, eliminating
+  midpoint or mass attachment behavior.
+- Worked: Browser verification passed. The braces followed live beam/column
+  node motion and no longer appeared independently attached to the mass
+  midpoint.
+
+### Request 75
+
+- Asked: Remove the bottom floor mass and fix the braces that were visually
+  rendering through or around the middle mass.
+- Changed: Removed the bottom default mass and restricted brace node lookup to
+  exact beam/column endpoints rather than any nearby body.
+- Worked: Browser verification showed two masses and brace endpoints matching
+  intended top/middle and middle/bottom node pairs.
+
+### Request 76
+
+- Asked: Explain why brace endpoints separated, and keep braces moving while
+  preserving node endpoints and reset geometry.
+- Changed: Reworked brace sync around shared beam/column node offsets and
+  exact reset width/height/angle snapshots.
+- Worked: Browser verification confirmed brace endpoint geometry and reset
+  behavior, while the run remained in progress until a failure threshold.
+
+### Request 77
+
+- Asked: Correct the brace node attachment and stop floor-mass thrashing sooner.
+- Changed: Added fixed brace/beam/column shared-node tracking, exact brace
+  length preservation, and immediate floor-mass ground/displacement failure
+  guards.
+- Worked: Implementation is complete and browser verification is in progress.

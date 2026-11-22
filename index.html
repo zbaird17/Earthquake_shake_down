@@ -793,11 +793,11 @@
               </div>
               <div class="metric">
                 <span class="metric-label">Elapsed</span>
-                <span class="metric-value">6.42 s</span>
+                <span class="metric-value" id="elapsedValue">0.00 s</span>
               </div>
               <div class="metric">
                 <span class="metric-label">Peak accel.</span>
-                <span class="metric-value">0.38 g</span>
+                <span class="metric-value" id="peakAccelValue">0.00 g</span>
               </div>
               <div class="metric">
                 <span class="metric-label">High score</span>
@@ -834,6 +834,7 @@
     </div>
   </main>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.20.0/matter.min.js"></script>
   <script>
     const app = document.getElementById("app");
     const sidebar = document.getElementById("sidebar");
@@ -848,6 +849,7 @@
     let selectedTool = "Column";
     let selectedElement = null;
     let isTesting = false;
+    let activeGravityMode = "earth";
     let braceDirection = "right";
     let pendingSegment = null;
     let segmentPreview = null;
@@ -1784,7 +1786,6 @@
       const top = bottom - 240;
 
       const positions = [
-        ["Floor mass", centerX, bottom],
         ["Floor mass", centerX, middle],
         ["Floor mass", centerX, top]
       ];
@@ -1800,8 +1801,10 @@
         }
       });
 
-      addSegment("Column", { x: left, y: top }, { x: left, y: bottom });
-      addSegment("Column", { x: right, y: top }, { x: right, y: bottom });
+      addSegment("Column", { x: left, y: top }, { x: left, y: middle });
+      addSegment("Column", { x: left, y: middle }, { x: left, y: bottom });
+      addSegment("Column", { x: right, y: top }, { x: right, y: middle });
+      addSegment("Column", { x: right, y: middle }, { x: right, y: bottom });
       addSegment("Beam", { x: left, y: bottom }, { x: right, y: bottom });
       addSegment("Beam", { x: left, y: middle }, { x: right, y: middle });
       addSegment("Beam", { x: left, y: top }, { x: right, y: top });
@@ -2031,6 +2034,7 @@
         document.querySelectorAll(".gravity-btn").forEach((item) => item.classList.remove("active"));
         button.classList.add("active");
         const mode = gravityModes[button.dataset.gravity];
+        activeGravityMode = button.dataset.gravity;
         document.documentElement.style.setProperty("--app-bg", mode.bg);
         document.documentElement.style.setProperty("--earth-panel", mode.panel);
         document.documentElement.style.setProperty("--earth-accent", mode.accent);
@@ -2046,11 +2050,400 @@
       collapseBtn.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
     });
 
+    let physicsEngine = null;
+    let physicsRunner = null;
+    let physicsAnimation = null;
+    let physicsBodies = [];
+    let physicsTableBody = null;
+    let tableBaseLeft = 0;
+    let testStartedAt = 0;
+    let testElapsed = 0;
+    let testPeakAcceleration = 0;
+    let physicsAnimationId = null;
+    let physicsSnapshots = [];
+
+    function gravityAcceleration() {
+      if (activeGravityMode === "mars") return 12.21;
+      if (activeGravityMode === "moon") return 5.33;
+      return 32.2;
+    }
+
+    function buildPhysicsTower() {
+      if (!window.Matter) {
+        statusLine.textContent = "Matter.js unavailable · Check internet connection";
+        return false;
+      }
+      const { Engine, Bodies, Body, Composite, Constraint } = window.Matter;
+      physicsEngine = Engine.create();
+      physicsEngine.gravity.y = gravityAcceleration() / 32.2;
+      physicsEngine.gravity.scale = 0.001;
+      physicsBodies = [];
+
+      const tableTop = getTableBoundary();
+      const tableRect = shakeTable.getBoundingClientRect();
+      const canvasRect = canvas.getBoundingClientRect();
+      tableBaseLeft = parseFloat(shakeTable.style.left) || snap((canvas.clientWidth - shakeTable.offsetWidth) / 2);
+      physicsTableBody = Bodies.rectangle(
+        tableBaseLeft + shakeTable.offsetWidth / 2,
+        tableTop + shakeTable.offsetHeight / 2,
+        shakeTable.offsetWidth,
+        shakeTable.offsetHeight,
+        { isStatic: true, friction: 0.8, restitution: 0.05 }
+      );
+      Composite.add(physicsEngine.world, physicsTableBody);
+
+      const endpointBodies = new Map();
+      designLayer.querySelectorAll(".placed-element").forEach((element) => {
+        const type = element.dataset.tool;
+        if (type !== "Column" && type !== "Beam" && type !== "Brace" && type !== "Floor mass") return;
+        if (type === "Brace") return;
+
+        let body = null;
+        if (type === "Floor mass") {
+          const rect = element.getBoundingClientRect();
+          const layerRect = designLayer.getBoundingClientRect();
+          const width = rect.width;
+          const height = rect.height;
+          const cx = rect.left - layerRect.left + width / 2;
+          const cy = rect.top - layerRect.top + height / 2;
+          body = Bodies.rectangle(cx, cy, width, height, {
+            restitution: 0.1,
+            friction: 0.7,
+            density: 0.002
+          });
+        } else {
+          const startX = Number(element.dataset.startX);
+          const startY = Number(element.dataset.startY);
+          const endX = Number(element.dataset.endX);
+          const endY = Number(element.dataset.endY);
+          const cx = (startX + endX) / 2;
+          const cy = (startY + endY) / 2;
+          let width;
+          let height;
+          let angle = 0;
+          if (type === "Column") {
+            width = 10;
+            height = Math.hypot(endX - startX, endY - startY);
+          } else if (type === "Beam") {
+            width = Math.hypot(endX - startX, endY - startY);
+            height = 10;
+          } else {
+            width = Math.hypot(endX - startX, endY - startY);
+            height = 10;
+            angle = Math.atan2(endY - startY, endX - startX);
+          }
+          body = Bodies.rectangle(cx, cy, width, height, {
+            restitution: 0.05,
+            friction: 0.9,
+            density: type === "Floor mass" ? 0.002 : 0.001,
+            angle
+          });
+        }
+
+        if (!body) return;
+        body.element = element;
+        body.initialPosition = { x: body.position.x, y: body.position.y };
+        body.initialAngle = body.angle;
+        body.initialStartOffset = {
+          x: Number(element.dataset.startX) - body.position.x,
+          y: Number(element.dataset.startY) - body.position.y
+        };
+        body.initialEndOffset = {
+          x: Number(element.dataset.endX) - body.position.x,
+          y: Number(element.dataset.endY) - body.position.y
+        };
+        physicsBodies.push(body);
+
+        if (type !== "Floor mass") {
+          const start = { x: Number(element.dataset.startX), y: Number(element.dataset.startY) };
+          const end = { x: Number(element.dataset.endX), y: Number(element.dataset.endY) };
+          [start, end].forEach((node) => {
+            if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) return;
+            const key = snap(node.x) + "," + snap(node.y);
+            if (!endpointBodies.has(key)) endpointBodies.set(key, []);
+            endpointBodies.get(key).push({ body, node });
+          });
+        }
+      });
+
+      endpointBodies.forEach((entries, key) => {
+        const [nodeX, nodeY] = key.split(",").map(Number);
+        entries.forEach((entry, index) => {
+          entries.slice(index + 1).forEach((other) => {
+            const pointA = {
+              x: entry.node.x - entry.body.position.x,
+              y: entry.node.y - entry.body.position.y
+            };
+            const pointB = {
+              x: other.node.x - other.body.position.x,
+              y: other.node.y - other.body.position.y
+            };
+            Composite.add(physicsEngine.world, Constraint.create({
+              bodyA: entry.body,
+              pointA,
+              bodyB: other.body,
+              pointB,
+              stiffness: 1,
+              damping: 0.5,
+              length: 0
+            }));
+          });
+        });
+        if (nodeY >= getTableBoundary() - 1) {
+          entries.forEach((entry) => {
+            Composite.add(physicsEngine.world, Constraint.create({
+              bodyA: physicsTableBody,
+              pointA: { x: nodeX - physicsTableBody.position.x, y: nodeY - physicsTableBody.position.y },
+              bodyB: entry.body,
+              pointB: {
+                x: nodeX - entry.body.position.x,
+                y: nodeY - entry.body.position.y
+              },
+              stiffness: 1,
+              damping: 0.5,
+              length: 0
+            }));
+          });
+        }
+      });
+
+      Composite.add(physicsEngine.world, physicsBodies.map((body) => body));
+      const beamBodies = physicsBodies.filter((body) => body.element?.dataset.tool === "Beam");
+      const massBodies = physicsBodies.filter((body) => body.element?.dataset.tool === "Floor mass");
+      massBodies.forEach((massBody) => {
+        const massRect = massBody.element.getBoundingClientRect();
+        const massCenterX = massBody.position.x;
+        const massCenterY = massBody.position.y;
+        let nearestBeam = null;
+        let nearestDistance = Infinity;
+        beamBodies.forEach((beamBody) => {
+          const beamElement = beamBody.element;
+          const beamY = (Number(beamElement.dataset.startY) + Number(beamElement.dataset.endY)) / 2;
+          const startX = Number(beamElement.dataset.startX);
+          const endX = Number(beamElement.dataset.endX);
+          const beamLeft = Math.min(startX, endX);
+          const beamRight = Math.max(startX, endX);
+          if (massCenterX >= beamLeft - 10 && massCenterX <= beamRight + 10) {
+            const distance = Math.abs(massCenterY - beamY);
+            if (distance < nearestDistance) {
+              nearestDistance = distance;
+              nearestBeam = beamBody;
+            }
+          }
+        });
+        if (!nearestBeam) return;
+        const beamElement = nearestBeam.element;
+        const beamStartX = Number(beamElement.dataset.startX);
+        const beamEndX = Number(beamElement.dataset.endX);
+        const beamY = (Number(beamElement.dataset.startY) + Number(beamElement.dataset.endY)) / 2;
+        const massHalfWidth = massBody.bounds.max.x - massBody.position.x;
+        const attachmentOffset = Math.min(massHalfWidth, 120);
+        [
+          { x: beamStartX, y: beamY },
+          { x: beamEndX, y: beamY }
+        ].forEach((node) => {
+          Composite.add(physicsEngine.world, Constraint.create({
+            bodyA: nearestBeam,
+            pointA: { x: node.x - nearestBeam.position.x, y: node.y - nearestBeam.position.y },
+            bodyB: massBody,
+            pointB: { x: node.x - massBody.position.x, y: node.y - massBody.position.y },
+            stiffness: 0.8,
+            damping: 0.35,
+            length: 0
+          }));
+        });
+      });
+      return true;
+    }
+
+    function syncPhysicsElements() {
+      const structuralBodies = physicsBodies.filter((body) =>
+        body.element?.dataset.tool === "Column" ||
+        body.element?.dataset.tool === "Beam"
+      );
+      const getWorldNode = (nodeX, nodeY) => {
+        const matches = [];
+        structuralBodies.forEach((body) => {
+          const element = body.element;
+          const startX = Number(element.dataset.startX);
+          const startY = Number(element.dataset.startY);
+          const endX = Number(element.dataset.endX);
+          const endY = Number(element.dataset.endY);
+          if (startX === nodeX && startY === nodeY) {
+            const offset = body.initialStartOffset;
+            const rotation = body.angle - body.initialAngle;
+            const cosine = Math.cos(rotation);
+            const sine = Math.sin(rotation);
+            matches.push({
+              x: body.position.x + offset.x * cosine - offset.y * sine,
+              y: body.position.y + offset.x * sine + offset.y * cosine
+            });
+          }
+          if (endX === nodeX && endY === nodeY) {
+            const offset = body.initialEndOffset;
+            const rotation = body.angle - body.initialAngle;
+            const cosine = Math.cos(rotation);
+            const sine = Math.sin(rotation);
+            matches.push({
+              x: body.position.x + offset.x * cosine - offset.y * sine,
+              y: body.position.y + offset.x * sine + offset.y * cosine
+            });
+          }
+        });
+        if (!matches.length) return { x: nodeX, y: nodeY };
+        return {
+          x: matches.reduce((sum, point) => sum + point.x, 0) / matches.length,
+          y: matches.reduce((sum, point) => sum + point.y, 0) / matches.length
+        };
+      };
+
+      designLayer.querySelectorAll(".placed-element.brace").forEach((brace) => {
+        const start = getWorldNode(
+          Number(brace.dataset.startX),
+          Number(brace.dataset.startY)
+        );
+        const end = getWorldNode(
+          Number(brace.dataset.endX),
+          Number(brace.dataset.endY)
+        );
+        const originalLength = Math.hypot(
+          Number(brace.dataset.endX) - Number(brace.dataset.startX),
+          Number(brace.dataset.endY) - Number(brace.dataset.startY)
+        );
+        const liveAngle = Math.atan2(end.y - start.y, end.x - start.x);
+        const angle = liveAngle * 180 / Math.PI;
+        brace.style.left = start.x + "px";
+        brace.style.top = (start.y - 5) + "px";
+        brace.style.width = originalLength + "px";
+        brace.style.height = "10px";
+        brace.style.transform = "rotate(" + angle + "deg)";
+        brace.style.transformOrigin = "0 50%";
+        keepBraceLabelUpright(brace, angle);
+      });
+
+      physicsBodies.forEach((body) => {
+        const element = body.element;
+        if (!element) return;
+        if (element.dataset.tool === "Beam") {
+          element.style.left = (body.position.x - element.offsetWidth / 2) + "px";
+          element.style.top = (body.position.y - element.offsetHeight / 2) + "px";
+          element.style.transform = "rotate(" + body.angle * 180 / Math.PI + "deg)";
+        } else if (element.dataset.tool === "Column") {
+          element.style.left = (body.position.x - element.offsetWidth / 2) + "px";
+          element.style.top = (body.position.y - element.offsetHeight / 2) + "px";
+          element.style.transform = "rotate(" + body.angle * 180 / Math.PI + "deg)";
+        } else if (element.dataset.tool === "Floor mass") {
+          element.style.left = (body.position.x - element.offsetWidth / 2) + "px";
+          element.style.top = (body.position.y - element.offsetHeight / 2) + "px";
+          element.style.transform = "rotate(" + body.angle * 180 / Math.PI + "deg)";
+        }
+      });
+    }
+
     function setTesting(testing) {
       isTesting = testing;
       if (testing) {
         cancelPendingSegment();
         removePlacementGhost();
+        physicsSnapshots = [...designLayer.querySelectorAll(".placed-element")].map((element) => ({
+          element,
+          left: element.style.left,
+          top: element.style.top,
+          width: element.style.width,
+          height: element.style.height,
+          transform: element.style.transform,
+          transformOrigin: element.style.transformOrigin
+        }));
+        if (buildPhysicsTower()) {
+          testStartedAt = performance.now();
+          testElapsed = 0;
+          testPeakAcceleration = 0;
+          document.getElementById("elapsedValue").textContent = "0.00 s";
+          document.getElementById("peakAccelValue").textContent = "0.00 g";
+
+          physicsAnimation = (now) => {
+            if (!isTesting) return;
+            testElapsed = (now - testStartedAt) / 1000;
+            if (testElapsed >= 10) {
+              setTesting(false);
+              statusLine.textContent = "Test complete · 10.00 s";
+              return;
+            }
+
+            const amplitude = Number(document.getElementById("amplitudeNumber").value);
+            const frequency = Number(document.getElementById("frequencyNumber").value);
+            const omega = 2 * Math.PI * frequency;
+            const displacementPx = amplitude * 20 / 12 * Math.sin(omega * testElapsed);
+            const displacementFt = displacementPx / 20;
+            const accelerationFt = Math.abs(omega * omega * displacementFt);
+            testPeakAcceleration = Math.max(testPeakAcceleration, accelerationFt / gravityAcceleration());
+
+            Matter.Engine.update(physicsEngine, 1000 / 60);
+            const groundPlane = getTableBoundary();
+            const collided = physicsBodies.some((body) =>
+              body.element?.dataset.tool === "Floor mass" &&
+              body.bounds.max.y >= groundPlane - 4
+            );
+            const displaced = physicsBodies.some((body) => {
+              if (body.element?.dataset.tool !== "Floor mass" || !body.initialPosition) return false;
+              const dx = body.position.x - body.initialPosition.x;
+              const dy = body.position.y - body.initialPosition.y;
+              return Math.abs(dx) > 60 || dy > 40;
+            });
+            if (collided || displaced) {
+              testElapsed = Math.max(testElapsed, 0);
+              setTesting(false);
+              statusLine.textContent = collided
+                ? "Test failed · Floor mass reached ground at " + testElapsed.toFixed(2) + " s"
+                : "Test failed · Floor mass detached at " + testElapsed.toFixed(2) + " s";
+              return;
+            }
+            if (physicsTableBody) {
+              Matter.Body.setPosition(physicsTableBody, {
+                x: tableBaseLeft + shakeTable.offsetWidth / 2 + displacementPx,
+                y: physicsTableBody.position.y
+              });
+            }
+            shakeTable.style.left = (tableBaseLeft + displacementPx) + "px";
+            syncPhysicsElements();
+
+            document.getElementById("elapsedValue").textContent = testElapsed.toFixed(2) + " s";
+            document.getElementById("peakAccelValue").textContent = testPeakAcceleration.toFixed(2) + " g";
+            physicsAnimationId = requestAnimationFrame(physicsAnimation);
+          };
+          physicsAnimationId = requestAnimationFrame(physicsAnimation);
+        } else {
+          isTesting = false;
+        }
+      } else {
+        if (physicsAnimationId) cancelAnimationFrame(physicsAnimationId);
+        physicsAnimationId = null;
+        shakeTable.style.left = tableBaseLeft ? tableBaseLeft + "px" : shakeTable.style.left;
+        physicsSnapshots.forEach((snapshot) => {
+          snapshot.element.style.left = snapshot.left;
+          snapshot.element.style.top = snapshot.top;
+          snapshot.element.style.width = snapshot.width;
+          snapshot.element.style.height = snapshot.height;
+          snapshot.element.style.transform = snapshot.transform;
+          snapshot.element.style.transformOrigin = snapshot.transformOrigin;
+          if (snapshot.element.dataset.tool === "Brace") {
+            const startX = Number(snapshot.element.dataset.startX);
+            const startY = Number(snapshot.element.dataset.startY);
+            const endX = Number(snapshot.element.dataset.endX);
+            const endY = Number(snapshot.element.dataset.endY);
+            const length = Math.hypot(endX - startX, endY - startY);
+            const angle = Math.atan2(endY - startY, endX - startX) * 180 / Math.PI;
+            snapshot.element.style.left = startX + "px";
+            snapshot.element.style.top = (startY - 5) + "px";
+            snapshot.element.style.width = length + "px";
+            snapshot.element.style.height = "10px";
+            snapshot.element.style.transform = "rotate(" + angle + "deg)";
+            snapshot.element.style.transformOrigin = "0 50%";
+            keepBraceLabelUpright(snapshot.element, angle);
+          }
+          alignEndpointHandles(snapshot.element);
+        });
+        physicsSnapshots = [];
       }
       document.querySelectorAll(".tool").forEach((tool) => { tool.disabled = testing; });
       document.getElementById("starterBtn").disabled = testing;
@@ -2063,7 +2456,9 @@
         : "1 ft grid · Design mode";
       if (testing) {
         selectElement(null);
-        statusLine.textContent = "Test in progress · 6.42 s";
+        statusLine.textContent = "Test in progress";
+      } else {
+        statusLine.textContent = "Test stopped · " + testElapsed.toFixed(2) + " s";
       }
     }
 
@@ -2071,7 +2466,6 @@
     document.getElementById("topStartBtn").addEventListener("click", () => setTesting(!isTesting));
     document.getElementById("stopBtn").addEventListener("click", () => {
       setTesting(false);
-      statusLine.textContent = "Test stopped · 6.42 s";
     });
 
     document.getElementById("starterBtn").addEventListener("click", loadStarter);
