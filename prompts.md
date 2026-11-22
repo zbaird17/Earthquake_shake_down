@@ -767,3 +767,105 @@
   length preservation, and immediate floor-mass ground/displacement failure
   guards.
 - Worked: Implementation is complete and browser verification is in progress.
+
+### Request 78
+
+- Asked: Review the spec, then edit the program so the calibration mass falls all
+  the way to the ground and measure its fall time. Clarified that the spec and
+  app edits may happen sequentially within one request.
+- Changed: Updated the free-fall calibration requirements in `spec.md` to require
+  a rest release 10 ft above ground, animation through ground contact, measured
+  and expected times, and a ±1% pass/fail result for each gravity mode. Added a
+  10 ft drop control, animated calibration mass, selected-gravity acceleration,
+  interpolated impact timing, and result reporting to `index.html`.
+- Worked: The app script passes a JavaScript parse check. Simulated 60 Hz impact
+  timing for Earth, Mars, and Moon falls within 0.005% of their targets. Browser
+  interaction could not be verified because the computer-use service reported
+  that Chrome was not approved for access.
+
+### Request 79
+
+- Asked: Keep the bottom ends of the braces connected to the joints at the ends
+  of the columns and beams.
+- Changed: Updated the brace-motion requirement in `spec.md`. In `index.html`,
+  braces now use the live distance between their tracked beam/column joints for
+  rendered length, label, and endpoint handle placement during tests.
+- Worked: The app script passes a JavaScript parse check. Geometry checks for
+  representative moving endpoints showed zero far-end error; browser interaction
+  was not available because Chrome was not approved for computer-use access.
+
+### Request 80
+
+- Asked: Fix brace placement, which was not working.
+- Changed: Consolidated brace pointer handling into a capture-phase path that
+  routes canvas clicks and clicks on columns/beams through the same snapped,
+  two-anchor placement flow. Retained the existing instruction to place brace
+  ends on structural anchors.
+- Worked: The app script passes a JavaScript parse check, and static checks
+  confirm the capture handler routes brace clicks to the two-anchor placement
+  logic. Browser interaction could not be verified because Chrome was not
+  approved for computer-use access.
+
+### Request 81
+
+- Asked: Fix brace placement so braces can be placed like beams or columns, and
+  adjust the layout to avoid scrolling and remove the duplicate top controls.
+- Changed: Updated the placement and desktop-layout requirements in `spec.md`.
+  Brace endpoints now accept grid points anywhere in the canvas via the same
+  two-click flow, including the shake-table edge. Removed the duplicate top
+  starter/test buttons and arranged the sidebar in compact two-column sections
+  with no internal scroll area.
+- Worked: The app script passes a JavaScript parse check. Static code-path checks
+  confirm brace clicks grid-snap without requiring an existing member, both top
+  duplicate controls are gone, and the sidebar no longer has an internal scroll
+  area. Browser interaction could not be verified because Chrome was not
+  approved for computer-use access.
+
+### Request 82
+
+- Asked: Restore the previous sidebar appearance, keep the duplicate top
+  Load Starter Tower and Start Test controls removed, and move calibration to
+  the bottom.
+- Changed: Restored the sidebar's single-column section styling and moved the
+  free-fall calibration into its own final section. Updated `spec.md` to record
+  that layout and section order.
+- Worked: The app script passes a JavaScript parse check. Sidebar order checks
+  confirm calibration follows Simulation as the last section, with both
+  duplicate header controls still removed. Browser layout could not be inspected
+  because Chrome was not approved for computer-use access.
+
+### Request 83
+
+- Asked: Align the brace placement ghost node with the grid.
+- Changed: Centered the brace ghost on the same structural/grid-snapped point
+  used by placement and kept the ghost available while pointing over the table.
+- Worked: The app script passes a JavaScript parse check. Static checks confirm
+  the ghost and placed brace use the same snap function, and a center-position
+  check puts the 14 px marker center exactly at its snapped coordinate. Browser
+  interaction could not be verified because Chrome was not approved for access.
+
+### Request 84
+
+- Asked: Remove the temporary calibration mass 1–2 seconds after its drop and
+  before any further edit; make unsupported placed masses fall when a test starts.
+- Changed: Updated `spec.md` for calibration-mass cleanup and unsupported-mass
+  behavior. Added 1.5-second cleanup and immediate cleanup on interaction or test
+  start. Floor masses now attach only when their bottom is near a beam centerline;
+  unsupported masses are excluded from the detached-from-support failure check so
+  they can fall to the ground.
+- Worked: The app script passes a JavaScript parse check. Static checks confirm
+  1.5-second delayed cleanup, immediate pointer/keyboard/test-start cleanup, and
+  support attachment only within 12 px of a beam centerline. Unsupported masses
+  bypass the detachment guard and continue to the ground-collision check. Browser
+  animation could not be verified because Chrome was not approved for access.
+
+### Request 85
+
+- Asked: Allow 1 ft elements as the minimum size.
+- Changed: Added the 1 ft minimum for member lengths and floor-mass dimensions to
+  `spec.md`. Updated segment creation and endpoint editing to accept lengths of
+  exactly one grid interval while rejecting shorter lengths; floor-mass resizing
+  already enforces the same minimum dimension.
+- Worked: The app script passes a JavaScript parse check. Creation and endpoint
+  edit checks accept exactly 20 px (1 ft) and reject values below 20 px; floor
+  mass resize checks enforce a 20 px minimum for both dimensions.

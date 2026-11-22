@@ -6,7 +6,9 @@ Structural Elements (Canvas Placement): Columns ($50/ft), beams ($40/ft), diagon
 
 Grid Resolution: The canvas has 1 ft grid lines, and placement snaps to those lines. Structural lengths are measured in feet. All structural elements and floor masses must remain within the visible canvas boundary.
 
-Floor Masses: Floor masses may be placed freely at any grid point. Each floor mass is attached to the nearest supporting beam with constraints at its beam-node attachment points. It may move as part of that beam/floor system but must not slide independently off the structure.
+Minimum Element Size: Structural members may be as short as 1 ft. Floor-mass width and height may each be as small as 1 ft; no element dimension or member length may be less than 1 ft.
+
+Floor Masses: Floor masses may be placed freely at any grid point. A mass resting on a supporting beam is attached to that beam with constraints at its beam-node attachment points and may move as part of the beam/floor system without sliding independently off the structure. A mass placed without beam support remains unattached and falls under gravity as soon as a test starts.
 
 Shaking Controls: Shake table amplitude A ranges from 0 to 12 inches, and frequency f ranges from 0.1 to 10 Hz for a sine-wave test. Each value has a slider and a corresponding synchronized number box. Suggested starting values are 6 inches of amplitude and 5 Hz of frequency.
 
@@ -16,7 +18,7 @@ Simulation Controls: Start/Stop Test button, Clear Structure button, and Load St
 
 The app opens in design mode with the exact default starter tower already loaded, plus the user-selectable structural tools. At the 600 px-wide desktop canvas size, columns connect from x=180 and x=420, with shared beam and brace nodes at y=220, y=340, and y=460. The three beams span 240 px horizontally and are 12 ft each; the bottom beam sits directly on the table top. Each side column is split into two separate 6 ft segments from y=220 to y=340 and y=340 to y=460, with a shared column/beam node at y=340. The starter brace layout contains exactly two braces: one spanning the top level between y=220 nodes and one spanning the bottom level between y=340 and y=460 nodes. The shake table is 360 px wide, its top is y=460, and it remains fully visible above the lower canvas/grid band. Each floor mass is a wide 220×20 px panel centered exactly within the 240 px bay, with its bottom edge aligned to a beam centerline. The default tower has two floor masses, on the top and middle beams; the bottom bay has no mass. Mass panels render behind columns, beams, and braces. Columns, beams, and braces must remain snapped to grid lines after placement, endpoint editing, and dragging. During tests, braces follow the two exact beam/column nodes at their endpoints and rotate/translate with the rest of the frame rather than remaining static or teleporting. The Normal/Elevated/Failed legend remains in the top-right outside the structure. Clearing and reloads preserve this default configuration unless the user explicitly replaces it. Escape deactivates the active placement tool and cancels pending placement.
 
-When a structural-member type is selected, the canvas shows a live, grid-snapped ghost preview that follows the pointer until the user places or cancels it. Structural endpoints snap to existing structural nodes or to 1 ft grid intersections; overlapping members must attach at a shared node instead of crossing outside the node. Clicking a corner or body of an existing member while a placement tool is active starts a new member at that snapped node and must not select or drag the existing member. The pointer represents the left/start point of a beam ghost, and beams may be placed at any allowed grid height rather than only at the shake table. Columns may begin at any snapped grid height or structural node, including upper levels; after the bottom/start point is chosen, the ghost extends vertically and the second click selects the upper/end height. A brace ghost begins at the snapped pointer endpoint and spans toward the second clicked node, changing angle and length rather than centering on the pointer. Existing columns may also be extended or moved between nodes. Braces are stretchable, angle-changing members: the user may select a brace and move either endpoint to another node on a column or beam, with the live brace rotating and stretching between the snapped node endpoints. Brace rendering and length labels always remain visually upright: the physical nodes do not move, and the label/text is counter-rotated while the brace line stretches and changes angle. Brace and floor-mass previews indicate snapped anchor validity.
+When a structural-member type is selected, the canvas shows a live, grid-snapped ghost preview that follows the pointer until the user places or cancels it. Structural endpoints snap to existing structural nodes or to 1 ft grid intersections; overlapping members must attach at a shared node instead of crossing outside the node. Clicking a corner or body of an existing member while a placement tool is active starts a new member at that snapped node and must not select or drag the existing member. The pointer represents the left/start point of a beam ghost, and beams may be placed at any allowed grid height rather than only at the shake table. Columns may begin at any snapped grid height or structural node, including upper levels; after the bottom/start point is chosen, the ghost extends vertically and the second click selects the upper/end height. Braces use the same two-click placement flow as beams and columns: either endpoint may be selected at any allowed 1 ft grid intersection, and the user need not click on an existing member. The brace ghost begins at the snapped first endpoint and spans toward the second clicked point, changing angle and length rather than centering on the pointer. Existing columns may also be extended or moved between nodes. Braces are stretchable, angle-changing members: the user may select a brace and move either endpoint to another snapped point, with the live brace rotating and stretching between the snapped endpoints. Brace rendering and length labels always remain visually upright: the physical nodes do not move, and the label/text is counter-rotated while the brace line stretches and changes angle. Brace and floor-mass previews indicate snapped anchor validity.
 
 A clearly labeled **Load Starter Tower** button replaces the current design with a simple default frame.
 
@@ -27,7 +29,7 @@ The user sets the sine-wave amplitude and frequency, starts the test, and observ
 
 Stage 4 Physics: During an active test, the app uses Matter.js constraints and rigid bodies for placed structural members and floor masses. Canvas position in pixels maps consistently to feet, elapsed simulation time maps to seconds, and horizontal acceleration is derived from the shake-table sine-wave motion. The table starts at zero displacement and follows `x(t) = A sin(2πft)` with the amplitude and frequency selected in Stage 3. Earth, Mars, and Moon gravity remain selectable and affect the same rigid bodies. Start/Stop and Clear actions control test state, and structural editing is locked for the full test duration.
 
-Brace and Joint Motion: Brace endpoints are the same structural nodes that terminate the connected beams or columns. During a test, brace endpoints follow the live beam/column node positions, and brace length remains fixed until the joint-failure stage is implemented. A brace is never attached to a floor mass. Stop or reset restores its original endpoints, angle, width, and height.
+Brace and Joint Motion: Brace endpoints are the same structural nodes that terminate the connected beams or columns. During a test, each brace's visible endpoints remain coincident with the live beam/column joint positions as the frame moves. Render the line using the current distance and angle between those joints so its far end does not separate from its joint. A brace is never attached to a floor mass. Stop or reset restores its original endpoints, angle, width, and height.
 
 Gravity: Earth gravity is 32.2 ft/s². Mars gravity is 12.21 ft/s², and Moon gravity is 5.33 ft/s². Selecting a gravity mode applies the corresponding acceleration to the simulation.
 
@@ -57,7 +59,7 @@ At the end of a run, the app shows an explicit success or failure result and inc
 ## Look and Feel
 A playful classroom-simulator style and clean, single-page layout.
 
-A responsive simulation canvas supports a desktop maximum of 600 × 500 px. The structural-element toolbar is positioned on the left side of the canvas. The seismic-controls and readout sidebar is collapsible on both desktop and mobile viewports.
+A responsive simulation canvas supports a desktop maximum of 600 × 500 px. The structural-element toolbar is positioned on the left side of the canvas. The seismic-controls and readout sidebar is collapsible on both desktop and mobile viewports. Keep sidebar sections in a single vertical column, place the free-fall calibration section last, and keep the starter-tower and test controls in the sidebar rather than duplicating them in the page header.
 
 The shake table occupies the bottom of the canvas and is aligned exactly with the bottom snap-grid line. There is no separate ground band between the bottom grid line and the table. Structural columns connect directly to the top surface of the shake table, and no structural member or floor mass may extend below the table.
 
@@ -66,22 +68,24 @@ On mobile viewports, the controls stack beneath the canvas. Placement controls r
 The interface provides clear active, disabled, hover, and failure states.
 
 ## Validation
-Free-Fall Calibration: a block starting 10 ft above the ground is calibrated for each gravity mode:
+Free-Fall Calibration: the user can run a calibration drop with a test mass released from rest 10 ft above the ground. The mass must fall freely all the way to the ground plane; the measurement stops when it reaches the ground, and the app reports the measured fall time, the expected time, and whether the result is within ±1%. Remove the temporary calibration mass 1.5 seconds after ground contact, and remove it immediately before any design edit or structural test. The selected gravity mode determines the acceleration and expected time:
 - Earth at 32.2 ft/s²: 0.78811 seconds
 - Mars at 12.21 ft/s²: 1.2798 seconds
 - Moon at 5.33 ft/s²: 1.9371 seconds
 
-Measured free-fall times must be within ±1% of the applicable target. Test cases should record the gravity mode, expected time, actual time, tolerance, and pass/fail result.
+Measured free-fall times must be within ±1% of the applicable target. Test cases should record the gravity mode, expected time, actual time, tolerance, and pass/fail result. The fall animation must remain active until ground contact rather than stopping at an intermediate height.
 
 Shake-Table Calibration: measure 10 complete cycles and compare the measured period with the configured frequency, and compare the measured extreme displacement with the configured amplitude. Verify the checks visually in the animation and with automated test data. General input and motion measurements must be within ±1%.
 
 Acceptance Checks:
 - Placement snaps to the 1 ft grid and prevents elements outside the visible canvas boundary.
+- Columns, beams, braces, and floor-mass dimensions accept exactly 1 ft as the minimum size and reject anything smaller.
 - Cost updates match the placed element lengths and rates.
 - Slider values remain synchronized with their number boxes.
 - The 15-kip force-magnitude threshold breaks the associated joint constraint.
 - A tower survives 10.0 seconds without a floor-mass ground collision to pass.
 - Floor-mass ground collision or structural collapse clearly ends or identifies the failed test.
+- A floor mass without beam support falls as soon as the test begins.
 - Clear Structure resets test readouts and returns the app to the initial blank state.
 - The Earth, Mars, and Moon gravity controls work and apply the specified backgrounds.
 - Desktop and mobile layouts remain usable and keep controls from obscuring the canvas.
