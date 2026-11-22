@@ -22,7 +22,7 @@ When a structural-member type is selected, the canvas shows a live, grid-snapped
 
 A clearly labeled **Load Starter Tower** button replaces the current design with a simple default frame.
 
-The user sets the sine-wave amplitude and frequency, starts the test, and observes the shake table and tower. During testing, the structure cannot be edited. The user may stop the test manually or clear the structure to return to design mode.
+The user sets the sine-wave amplitude and frequency, starts the test, and observes the shake table and tower. During testing, the structure cannot be edited. On success or failure, freeze the simulation and preserve the final structure and joint-stress display in test mode for inspection. Keep design controls locked until the user clicks Stop Test; then restore the saved design and return to design mode. The user may also stop an active test manually or clear the structure to return to design mode.
 
 ## Calculations
 2D Rigid-Body Physics (Matter.js): The simulation uses 2D rigid-body physics to model tower motion and constraints. Unit conversion must consistently represent positions, forces, acceleration, and time.
@@ -35,11 +35,11 @@ Gravity: Earth gravity is 32.2 ft/s². Mars gravity is 12.21 ft/s², and Moon gr
 
 Shake Table Displacement: For sine-wave shaking, horizontal table displacement is `x(t) = A sin(2πft)`, where A is amplitude in inches, f is frequency in Hz, t is elapsed time in seconds, and the table starts at zero displacement.
 
-Joint Failure: If the force magnitude at any joint exceeds 15 kip, the associated Matter.js constraint breaks.
+Joint Failure: Estimate joint demand as an instructional proxy: distribute each structural member's Matter.js mass evenly over its 1 ft grid intervals, assigning half of an interval's mass to each endpoint, and add half the mass of each supported floor mass at its beam support nodes. At each constrained node, multiply the resulting tributary mass by the resultant of gravity and horizontal shake-table acceleration. Convert Matter.js mass units using 0.01 kip·s²/ft per mass unit. Joints below 10 kip are normal (green); joints from 10 through 15 kip are elevated (yellow); if demand exceeds 15 kip, mark the joint failed (red), remove its associated Matter.js constraints, and show the resulting collapse. This proxy is for classroom behavior and is not a code-level structural-force calculation.
 
 Tower wins if it survives for 10.0 seconds without any floor mass colliding with the ground plane.
 
-Failure Timing: A floor-mass ground collision or a floor mass moving substantially away from its initial beam attachment ends the test immediately and identifies a failure; the app must not continue the run through prolonged floor thrashing.
+Failure Timing: A floor-mass ground collision ends the test and identifies a failure. Joint failure and floor-mass detachment are damage indicators only; the simulation continues through collapse until a floor mass reaches the ground or the 10.0-second survival limit is reached. Do not end the run when a joint breaks or when a floor mass first detaches.
 
 ## Outputs
 Real-time animation shows the tower, shake table motion, joint stress states, structural collapse, and floor-mass ground collisions.
@@ -55,6 +55,7 @@ Numerical Readouts:
 High Score is saved in browser local storage so it persists across visits. Failed runs do not update the High Score. Clearing the structure resets test readouts to the initial state.
 
 At the end of a run, the app shows an explicit success or failure result and includes the final elapsed survival time.
+The completed result and final simulated structure remain visible until the user clicks Stop Test; completion does not automatically restore the pre-test structure. Once the result is reached, keep the tower frozen for inspection while the shake table continues its configured sine-wave motion until Stop Test is clicked.
 
 ## Look and Feel
 A playful classroom-simulator style and clean, single-page layout.
@@ -84,7 +85,8 @@ Acceptance Checks:
 - Slider values remain synchronized with their number boxes.
 - The 15-kip force-magnitude threshold breaks the associated joint constraint.
 - A tower survives 10.0 seconds without a floor-mass ground collision to pass.
-- Floor-mass ground collision or structural collapse clearly ends or identifies the failed test.
+- A floor-mass ground collision ends the test as a failure; joint failure and detachment alone do not end it.
+- The shake table continues moving after a pass or failure result until the user clicks Stop Test, while the tower remains frozen for inspection.
 - A floor mass without beam support falls as soon as the test begins.
 - Clear Structure resets test readouts and returns the app to the initial blank state.
 - The Earth, Mars, and Moon gravity controls work and apply the specified backgrounds.
@@ -122,9 +124,9 @@ Add Matter.js and a basic shake table. Implement consistent unit conversion, Ear
 Test: Calibrate 10 ft free-fall targets for Earth, Mars, and Moon. Measure 10 cycles and compare table period and extreme displacement with configured values.
 
 ### Stage 5: Structural Failure and Outcomes
-Add the 15-kip joint-force threshold, green/yellow/red stress states, constraint breaking, structural collapse, floor-mass ground collision, 10-second survival, and explicit win/failure results.
+Add the 15-kip joint-force threshold, green/yellow/red stress states, constraint breaking, structural collapse, floor-mass ground collision as the failure stop, 10-second survival, and explicit win/failure results. Keep the structure frozen and continue shaking the table after either result until Stop Test is clicked.
 
-Test: Verify one successful 10-second run, one joint-failure run, one ground-collision run, and one manually stopped test.
+Test: Verify one successful 10-second run, a joint-failure run that continues collapsing until ground contact or 10 seconds, one ground-collision run, post-result table motion until Stop Test, and one manually stopped test.
 
 ### Stage 6: Readouts, Persistence, and Polish
 Complete live Total Cost, elapsed time, peak table acceleration, local-storage High Score, Clear Structure reset behavior, mobile touch controls, and final visual polish.

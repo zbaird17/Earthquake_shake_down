@@ -869,3 +869,43 @@
 - Worked: The app script passes a JavaScript parse check. Creation and endpoint
   edit checks accept exactly 20 px (1 ft) and reject values below 20 px; floor
   mass resize checks enforce a 20 px minimum for both dimensions.
+
+### Request 86
+
+- Asked: Build Stage 5 from the project spec.
+- Changed: Clarified the instructional joint-force proxy and 10 kip elevated
+  threshold in `spec.md`. Added brace physics bodies and grid-point node
+  constraints, joint stress markers, tributary-mass force estimates, 15 kip
+  constraint breaking, a brief collapse animation, explicit floor-mass failure
+  outcomes, 10-second pass results, and retained final elapsed times in
+  `index.html`.
+- Worked: The app script passes a JavaScript parse check. Static checks confirm
+  constraint tracking/removal, all three stress classes, survival success, and
+  the failure/manual-stop outcome paths. Browser physics runs could not be
+  verified because Chrome was not approved for computer-use access.
+
+### Request 87
+
+- Asked: Keep the post-test tower state visible until the user clicks Stop Test.
+- Changed: Updated `spec.md` to keep completed runs frozen in test mode for
+  inspection. In `index.html`, success, ground/displacement failure, and joint
+  failure now freeze the current physics state and keep editing locked; Stop Test
+  exits test mode and restores the saved design.
+- Worked: The app script parses. Static checks confirm outcome paths do not reset
+  the tower, editing remains locked, and Stop Test remains the action that restores
+  the saved design. Browser interaction could not be verified because Chrome was
+  not approved for computer-use access.
+
+### Request 88
+
+- Asked: Label the amplitude and frequency units.
+- Changed: Updated the visible control labels to show amplitude in inches and
+  frequency in hertz.
+- Worked: The labels are present in the HTML; browser visual verification was not
+  available because Chrome was not approved for computer-use access.
+
+### Request 89
+
+- Asked: End a test only when a floor mass reaches the ground (or the 10-second survival limit passes), not when a joint breaks; keep the shake table moving after failure until Stop Test.
+- Changed: Updated `spec.md` failure timing, Stage 5 behavior, and acceptance checks. Updated `index.html` so joint breaks remain visible while collapse continues, floor-mass detachment alone is nonterminal, and a ground collision ends the run. After pass or failure, the tower freezes while a table-only sine-wave animation continues until Stop Test.
+- Worked: Static checks confirm the joint-failure termination path and detachment stop condition are gone, ground collision is the failure path, and the completed-result table animation is scheduled until Stop Test. The inline JavaScript passes a parse check and static checks confirm the intended outcome paths; browser animation could not be verified because Chrome access was unavailable.
