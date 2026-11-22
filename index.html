@@ -280,18 +280,6 @@
       opacity: 0.92;
     }
 
-    .calibration-mass {
-      position: absolute;
-      z-index: 8;
-      width: 32px;
-      height: 20px;
-      border: 2px solid #17233b;
-      border-radius: 5px;
-      background: #fb7185;
-      box-shadow: 2px 2px 0 rgba(23, 35, 59, 0.2);
-      pointer-events: none;
-    }
-
     .placement-preview.column {
       width: 10px;
       height: 60px;
@@ -388,11 +376,13 @@
       font-size: 13px;
       pointer-events: none;
     }
+
     .member { stroke: #2b4263; stroke-width: 8; stroke-linecap: round; }
     .brace { stroke: #8aa0b8; stroke-width: 5; stroke-linecap: round; }
     .mass { fill: #ffb703; stroke: #17233b; stroke-width: 4; }
     .joint-normal { fill: var(--normal); stroke: #17233b; stroke-width: 2; }
     .joint-elevated { fill: var(--elevated); stroke: #17233b; stroke-width: 2; }
+
     .joint-stress-indicator {
       position: absolute;
       z-index: 6;
@@ -404,6 +394,7 @@
       pointer-events: none;
       box-shadow: 0 1px 3px rgba(23, 35, 59, 0.25);
     }
+
     .joint-stress-indicator.normal { background: var(--normal); }
     .joint-stress-indicator.elevated { background: var(--elevated); }
     .joint-stress-indicator.failed { background: var(--failed); animation: joint-failure-pulse 500ms ease-in-out infinite alternate; }
@@ -600,13 +591,16 @@
       font-weight: 800;
     }
 
-    .plot {
-      height: 86px;
-      width: 100%;
-      display: block;
-      border: 1px solid #e5edf5;
-      border-radius: 10px;
-      background: #fbfdff;
+    .status-line.result-success {
+      border: 1px solid #86efac;
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .status-line.result-failure {
+      border: 1px solid #fca5a5;
+      background: #fee2e2;
+      color: #991b1b;
     }
 
     .button {
@@ -637,6 +631,20 @@
       color: #be123c;
     }
 
+    .button.result-success:disabled {
+      border-color: #15803d;
+      background: #16a34a;
+      color: #fff;
+      opacity: 1;
+    }
+
+    .button.result-failure:disabled {
+      border-color: #b91c1c;
+      background: #dc2626;
+      color: #fff;
+      opacity: 1;
+    }
+
     .action-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -647,32 +655,27 @@
 
     @media (max-width: 980px) {
       .workspace {
-        grid-template-columns: 74px minmax(0, 600px);
+        grid-template-columns: 74px minmax(220px, 1fr) minmax(210px, 260px);
+        gap: 10px;
         justify-content: center;
       }
 
       .canvas-column {
         width: 100%;
         max-width: 600px;
-        justify-self: center;
+        justify-self: stretch;
       }
 
       .sidebar {
-        grid-column: 1 / -1;
-        max-height: none;
-      }
-
-      .sidebar-body {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-        max-height: none;
+        grid-column: auto;
+        max-height: 620px;
       }
 
       .section {
-        border: 1px solid #edf2f7;
-        border-radius: 10px;
-        padding: 10px;
+        border: 0;
+        border-bottom: 1px solid #edf2f7;
+        border-radius: 0;
+        padding: 10px 0 12px;
       }
     }
 
@@ -831,15 +834,6 @@
           </section>
 
           <section class="section">
-            <h3 class="section-title">Ground motion trace</h3>
-            <svg class="plot" viewBox="0 0 300 86" role="img" aria-label="Placeholder ground motion graph">
-              <line x1="0" y1="43" x2="300" y2="43" stroke="#ccd8e5" stroke-width="1"/>
-              <line x1="150" y1="0" x2="150" y2="86" stroke="#edf2f7" stroke-width="1"/>
-              <polyline points="0,43 12,31 24,19 36,12 48,17 60,31 72,48 84,64 96,72 108,66 120,52 132,35 144,22 156,16 168,21 180,35 192,52 204,69 216,74 228,68 240,54 252,37 264,22 276,16 288,21 300,34" fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </section>
-
-          <section class="section">
             <h3 class="section-title">Simulation</h3>
             <div class="action-grid">
               <button class="button primary" type="button" id="startBtn">Start test</button>
@@ -849,15 +843,6 @@
             </div>
           </section>
 
-          <section class="section">
-            <h3 class="section-title">Free-fall calibration</h3>
-            <div class="metric">
-              <span class="metric-label">Expected fall time</span>
-              <span class="metric-value" id="freeFallValue">Target 0.7881 s</span>
-              <button class="button" type="button" id="dropTestBtn">Run 10 ft drop</button>
-              <span class="metric-label" id="freeFallResult" aria-live="polite">Ready · mass drops to ground</span>
-            </div>
-          </section>
         </div>
       </aside>
     </div>
@@ -869,8 +854,6 @@
     const sidebar = document.getElementById("sidebar");
     const collapseBtn = document.getElementById("collapseBtn");
     const statusLine = document.getElementById("statusLine");
-    const freeFallValue = document.getElementById("freeFallValue");
-    const freeFallResult = document.getElementById("freeFallResult");
     const canvas = document.getElementById("canvas");
     const designLayer = document.getElementById("designLayer");
     const emptyHint = document.getElementById("emptyHint");
@@ -1167,12 +1150,11 @@
       } else if (type === "Brace") {
         left = bracePoint.x - ghostWidth / 2;
       } else {
-        const massAnchor = snapBracePoint(x, y);
         left = Math.max(
           0,
           Math.min(
             designLayer.clientWidth - ghostWidth,
-            massAnchor ? massAnchor.x : snap(x)
+            snap(x - ghostWidth / 2)
           )
         );
       }
@@ -1192,12 +1174,11 @@
       } else if (type === "Brace") {
         top = bracePoint.y - ghostHeight / 2;
       } else {
-        const massAnchor = snapBracePoint(x, y);
         top = Math.max(
           0,
           Math.min(
             tableTop - ghostHeight,
-            (massAnchor ? massAnchor.y : snap(y)) - ghostHeight / 2
+            snap(y - ghostHeight / 2)
           )
         );
       }
@@ -1792,7 +1773,6 @@
 
     function clearStructure() {
       if (isTesting) return;
-      removeCalibrationMass();
       clearJointStressIndicators();
       cancelPendingSegment();
       removePlacementGhost();
@@ -2075,9 +2055,9 @@
     });
 
     const gravityModes = {
-      earth: { bg: "#eef7ff", panel: "#ffffff", accent: "#2563eb", fall: 0.78811 },
-      mars: { bg: "#efc0aa", panel: "#fff8f5", accent: "#b45309", fall: 1.2798 },
-      moon: { bg: "#d8dde4", panel: "#f7f8fa", accent: "#4b5563", fall: 1.9371 }
+      earth: { bg: "#eef7ff", panel: "#ffffff", accent: "#2563eb" },
+      mars: { bg: "#efc0aa", panel: "#fff8f5", accent: "#b45309" },
+      moon: { bg: "#d8dde4", panel: "#f7f8fa", accent: "#4b5563" }
     };
 
     document.querySelectorAll(".gravity-btn").forEach((button) => {
@@ -2089,8 +2069,6 @@
         document.documentElement.style.setProperty("--app-bg", mode.bg);
         document.documentElement.style.setProperty("--earth-panel", mode.panel);
         document.documentElement.style.setProperty("--earth-accent", mode.accent);
-        freeFallValue.textContent = "Target " + mode.fall.toFixed(4) + " s";
-        freeFallResult.textContent = "Ready · mass drops to ground";
         statusLine.textContent = button.textContent.replace(/\s+/g, " ").trim() + " gravity selected";
       });
     });
@@ -2114,33 +2092,11 @@
     let testFinished = false;
     let physicsAnimationId = null;
     let physicsSnapshots = [];
-    let dropAnimationId = null;
-    let calibrationMass = null;
-    let calibrationCleanupTimeout = null;
     let jointGroups = [];
     let jointGroupByKey = new Map();
     const MATTER_MASS_TO_KIP_S2_PER_FT = 0.01;
     const ELEVATED_JOINT_FORCE_KIP = 10;
     const FAILED_JOINT_FORCE_KIP = 15;
-
-    function removeCalibrationMass() {
-      if (calibrationCleanupTimeout !== null) {
-        clearTimeout(calibrationCleanupTimeout);
-        calibrationCleanupTimeout = null;
-      }
-      const wasRunning = dropAnimationId !== null;
-      if (wasRunning) {
-        cancelAnimationFrame(dropAnimationId);
-        dropAnimationId = null;
-        document.getElementById("dropTestBtn").disabled = false;
-        document.querySelectorAll(".gravity-btn").forEach((button) => { button.disabled = false; });
-      }
-      if (calibrationMass) {
-        calibrationMass.remove();
-        calibrationMass = null;
-      }
-      if (wasRunning) freeFallResult.textContent = "Calibration stopped · mass removed";
-    }
 
     function clearJointStressIndicators() {
       jointGroups.forEach((group) => group.indicator?.remove());
@@ -2154,69 +2110,10 @@
       return 32.2;
     }
 
-    function runDropTest() {
-      if (isTesting || dropAnimationId) return;
-      removeCalibrationMass();
-
-      const startTime = performance.now();
-      const pxPerFoot = GRID;
-      const fallHeightFt = 10;
-      const acceleration = gravityAcceleration();
-      const groundY = getTableBoundary();
-      const massHeight = 20;
-      const travelPx = fallHeightFt * pxPerFoot;
-      const startTop = groundY - massHeight - travelPx;
-      const expectedTime = gravityModes[activeGravityMode].fall;
-
-      calibrationMass = document.createElement("div");
-      calibrationMass.className = "calibration-mass";
-      calibrationMass.setAttribute("aria-label", "10 foot free-fall calibration mass");
-      calibrationMass.style.left = (designLayer.clientWidth / 2 - 16) + "px";
-      calibrationMass.style.top = startTop + "px";
-      designLayer.appendChild(calibrationMass);
-      freeFallResult.textContent = "Dropping from 10 ft…";
-      const dropButton = document.getElementById("dropTestBtn");
-      dropButton.disabled = true;
-      document.querySelectorAll(".gravity-btn").forEach((button) => { button.disabled = true; });
-      let previousElapsed = 0;
-      let previousDistancePx = 0;
-
-      const animateDrop = (now) => {
-        const elapsed = Math.max(0, (now - startTime) / 1000);
-        const rawDistancePx = 0.5 * acceleration * pxPerFoot * elapsed * elapsed;
-        const distancePx = Math.min(travelPx, rawDistancePx);
-        calibrationMass.style.top = (startTop + distancePx) + "px";
-        if (rawDistancePx < travelPx) {
-          previousElapsed = elapsed;
-          previousDistancePx = rawDistancePx;
-          dropAnimationId = requestAnimationFrame(animateDrop);
-          return;
-        }
-
-        calibrationMass.style.top = (groundY - massHeight) + "px";
-        const crossingFraction = Math.max(0, Math.min(1,
-          (travelPx - previousDistancePx) / (rawDistancePx - previousDistancePx)
-        ));
-        const measuredTime = previousElapsed + crossingFraction * (elapsed - previousElapsed);
-        const passed = Math.abs(measuredTime - expectedTime) <= expectedTime * 0.01;
-        freeFallResult.textContent = "Actual " + measuredTime.toFixed(4) + " s · target " + expectedTime.toFixed(4) +
-          " s · ±1% " + (passed ? "PASS" : "FAIL");
-        statusLine.textContent = activeGravityMode[0].toUpperCase() + activeGravityMode.slice(1) +
-          " free-fall calibration " + (passed ? "passed" : "failed");
-        dropAnimationId = null;
-        dropButton.disabled = false;
-        document.querySelectorAll(".gravity-btn").forEach((button) => { button.disabled = false; });
-        calibrationCleanupTimeout = setTimeout(removeCalibrationMass, 1500);
-      };
-      dropAnimationId = requestAnimationFrame(animateDrop);
-    }
-
     app.addEventListener("pointerdown", () => {
-      removeCalibrationMass();
       if (!isTesting) clearJointStressIndicators();
     }, true);
     document.addEventListener("keydown", () => {
-      removeCalibrationMass();
       if (!isTesting) clearJointStressIndicators();
     }, true);
 
@@ -2657,33 +2554,22 @@
       document.getElementById("elapsedValue").textContent = testElapsed.toFixed(2) + " s";
       document.getElementById("peakAccelValue").textContent = testPeakAcceleration.toFixed(2) + " g";
       const startButton = document.getElementById("startBtn");
-      startButton.textContent = resultText.startsWith("Test passed") ? "Test passed" : "Test failed";
+      const passed = resultText.startsWith("Test passed");
+      startButton.textContent = passed ? "Test passed" : "Test failed";
+      startButton.classList.remove("result-success", "result-failure");
+      startButton.classList.add(passed ? "result-success" : "result-failure");
       startButton.disabled = true;
       document.getElementById("stopBtn").disabled = false;
       document.querySelector(".canvas-label").textContent = "1 ft grid · Test result";
       statusLine.textContent = resultText;
-      physicsAnimationId = requestAnimationFrame(function animateFinishedTable(now) {
-        if (!isTesting || !testFinished) return;
-        const elapsed = (now - testStartedAt) / 1000;
-        const amplitude = Number(document.getElementById("amplitudeNumber").value);
-        const frequency = Number(document.getElementById("frequencyNumber").value);
-        const displacementPx = amplitude * 20 / 12 * Math.sin(2 * Math.PI * frequency * elapsed);
-        shakeTable.style.left = (tableBaseLeft + displacementPx) + "px";
-        if (physicsTableBody) {
-          Matter.Body.setPosition(physicsTableBody, {
-            x: tableBaseLeft + shakeTable.offsetWidth / 2 + displacementPx,
-            y: physicsTableBody.position.y
-          });
-        }
-        physicsAnimationId = requestAnimationFrame(animateFinishedTable);
-      });
+      statusLine.classList.remove("result-success", "result-failure");
+      statusLine.classList.add(passed ? "result-success" : "result-failure");
     }
 
     function setTesting(testing) {
       isTesting = testing;
       if (testing) {
         testFinished = false;
-        removeCalibrationMass();
         cancelPendingSegment();
         removePlacementGhost();
         physicsSnapshots = [...designLayer.querySelectorAll(".placed-element")].map((element) => ({
@@ -2703,14 +2589,13 @@
           document.getElementById("peakAccelValue").textContent = "0.00 g";
 
           physicsAnimation = (now) => {
-            if (!isTesting || testFinished) return;
+            if (!isTesting) return;
             const simulationElapsed = (now - testStartedAt) / 1000;
-            if (simulationElapsed >= 10) {
+            if (simulationElapsed >= 10 && !testFinished) {
               testElapsed = 10;
               finishTest("Test passed · Survived 10.00 s");
-              return;
             }
-            testElapsed = simulationElapsed;
+            if (!testFinished) testElapsed = simulationElapsed;
 
             const amplitude = Number(document.getElementById("amplitudeNumber").value);
             const frequency = Number(document.getElementById("frequencyNumber").value);
@@ -2719,7 +2604,9 @@
             const displacementFt = displacementPx / 20;
             const signedAccelerationFt = omega * omega * displacementFt;
             const accelerationFt = Math.abs(signedAccelerationFt);
-            testPeakAcceleration = Math.max(testPeakAcceleration, accelerationFt / gravityAcceleration());
+            if (!testFinished) {
+              testPeakAcceleration = Math.max(testPeakAcceleration, accelerationFt / gravityAcceleration());
+            }
 
             Matter.Engine.update(physicsEngine, 1000 / 60);
             const failedJoint = updateJointStressStates(signedAccelerationFt);
@@ -2728,7 +2615,7 @@
               body.element?.dataset.tool === "Floor mass" &&
               body.bounds.max.y >= groundPlane - 4
             );
-            if (collided) {
+            if (collided && !testFinished) {
               if (physicsTableBody) {
                 Matter.Body.setPosition(physicsTableBody, {
                   x: tableBaseLeft + shakeTable.offsetWidth / 2 + displacementPx,
@@ -2738,9 +2625,8 @@
               shakeTable.style.left = (tableBaseLeft + displacementPx) + "px";
               syncPhysicsElements();
               finishTest("Test failed · Floor mass reached ground at " + testElapsed.toFixed(2) + " s");
-              return;
             }
-            if (failedJoint) {
+            if (failedJoint && !testFinished) {
               statusLine.textContent = "Joint at (" + failedJoint.x + ", " + failedJoint.y + ") exceeded 15 kip; collapse continues until a mass reaches the ground";
             }
 
@@ -2796,8 +2682,11 @@
       document.querySelectorAll(".tool").forEach((tool) => { tool.disabled = testing; });
       document.getElementById("starterBtn").disabled = testing;
       document.getElementById("clearBtn").disabled = testing;
-      document.getElementById("startBtn").textContent = testing ? "Test in progress" : "Start test";
-      document.getElementById("startBtn").disabled = testing;
+      const startButton = document.getElementById("startBtn");
+      startButton.textContent = testing ? "Test in progress" : "Start test";
+      startButton.classList.remove("result-success", "result-failure");
+      startButton.disabled = testing;
+      statusLine.classList.remove("result-success", "result-failure");
       document.getElementById("stopBtn").disabled = !testing;
       document.querySelector(".canvas-label").textContent = testing
         ? "1 ft grid · Test mode"
@@ -2817,7 +2706,6 @@
 
     document.getElementById("starterBtn").addEventListener("click", loadStarter);
     document.getElementById("clearBtn").addEventListener("click", clearStructure);
-    document.getElementById("dropTestBtn").addEventListener("click", runDropTest);
     loadStarter();
   </script>
 </body>

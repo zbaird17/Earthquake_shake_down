@@ -909,3 +909,75 @@
 - Asked: End a test only when a floor mass reaches the ground (or the 10-second survival limit passes), not when a joint breaks; keep the shake table moving after failure until Stop Test.
 - Changed: Updated `spec.md` failure timing, Stage 5 behavior, and acceptance checks. Updated `index.html` so joint breaks remain visible while collapse continues, floor-mass detachment alone is nonterminal, and a ground collision ends the run. After pass or failure, the tower freezes while a table-only sine-wave animation continues until Stop Test.
 - Worked: Static checks confirm the joint-failure termination path and detachment stop condition are gone, ground collision is the failure path, and the completed-result table animation is scheduled until Stop Test. The inline JavaScript passes a parse check and static checks confirm the intended outcome paths; browser animation could not be verified because Chrome access was unavailable.
+
+### Request 90
+
+- Asked: Make sure the shake table keeps moving after a successful test.
+- Changed: No application change was needed; `finishTest` already starts a continuing sine-wave animation for either result, and Stop Test cancels it. Confirmed both the 10-second success path and the floor-contact failure path call `finishTest`.
+- Worked: Static path checks confirm both results enter the same table animation, which continues while test mode is active and stops when the user clicks Stop Test.
+
+### Request 91
+
+- Asked: Make sure the shake table keeps moving after test success; the user observed it stopping at 10 seconds.
+- Changed: Replaced the inline post-result callback with a dedicated result-table animation loop and its own animation-frame ID. Success and failure both start this loop; Stop Test cancels it and restores the table.
+- Worked: Inline JavaScript parses. Static checks confirm the loop reschedules itself, both result paths share `finishTest`, and Stop Test cancels the loop. Browser animation still needs visual confirmation.
+
+### Request 92
+
+- Asked: Keep physics simulating after the tower earns its 10-second pass; the prior change kept only the table moving.
+- Changed: Updated `spec.md` so successful runs continue full tower physics and table shaking until Stop Test. In `index.html`, the 10-second threshold records success once and continues the normal Matter.js animation loop; elapsed survival display remains at 10.00 seconds. Failed tests still freeze the tower and keep only the table moving until Stop Test.
+- Worked: The inline JavaScript parses. Static checks confirm the success threshold is handled once, engine updates continue after the result, and failure still uses the frozen-tower table loop. Browser interaction was not available for visual confirmation.
+
+### Request 93
+
+- Asked: Continue full physics simulation after failure too, not only after success.
+- Changed: Updated `spec.md` so both success and floor-contact failure keep tower physics and shake-table motion active until Stop Test. In `index.html`, removed the result-only table loop; the Matter.js frame loop now continues after either outcome. It records a floor-contact failure only once and keeps the result, survival time, and peak acceleration fixed while physics proceeds.
+- Worked: Inline JavaScript parses. Static checks confirm the main physics loop continues while test mode is active, both terminal outcomes retain their recorded readouts, and the failure frame does not exit the loop. Browser animation was not visually verified.
+
+### Request 94
+
+- Asked: Make the pass/fail result turn green for pass and red for fail.
+- Changed: Updated the Look and Feel requirement in `spec.md`. Added green and red disabled-result button styles with white text; `finishTest` applies the matching class, and entering or leaving a test clears the result classes.
+- Worked: The inline JavaScript parses. Static checks confirm both styles, result-class assignment, and class reset are present. Browser colors were not visually verified.
+
+### Request 95
+
+- Asked: Color the result/status panel below Peak acceleration and High score green for pass and red for failure, then remove the ground-motion trace because the motion is always sinusoidal. The user also confirmed they like the existing colored result button.
+- Changed: Updated `spec.md` Look and Feel accordingly. Added matching pass/fail status-panel colors, applied and cleared them with the test result state, kept the colored result button, and removed the trace section and its unused CSS.
+- Worked: The inline JavaScript parses. Static checks confirm both status colors and result state handling are present and the ground-motion trace markup/styles are removed. Browser appearance was not visually checked.
+
+### Request 96
+
+- Asked: Remove calibration from the app and put its test cases and expected results in `02_validation/`.
+- Changed: Updated `spec.md` to define calibration as external validation rather than an app feature. Removed the free-fall calibration UI, temporary mass styling and simulation, gravity-mode target readout, event handlers, and related app state from `index.html`. Added `02_validation/calibration_test_cases.md` with Earth/Mars/Moon free-fall targets and acceptable ranges, shake-table period/displacement cases, expected default peak acceleration, tolerance rules, and fields for actual results; linked it from the validation README.
+- Worked: The inline JavaScript parses. Static checks confirm the app contains no free-fall calibration controls or logic and the validation document includes all three gravity cases, five shake-table cases, and ±1% criteria. Browser visual checks were not performed.
+
+### Request 97
+
+- Asked: Undo the layout change that removed the calibration section, restore the previous sidebar layout, but leave out the calibration button.
+- Changed: Restored a passive Free-fall calibration reference section at the bottom of the sidebar with the current gravity mode target and a pointer to `02_validation`. Kept the Run 10 ft drop button, temporary mass, and drop simulation removed. Updated the spec to match; the external test cases remain in `02_validation/calibration_test_cases.md`.
+- Worked: The inline JavaScript parses. Static checks confirm the panel is restored, the button and drop logic are absent, gravity selections update the expected-time reference, and validation cases remain available. Browser appearance was not visually checked.
+
+### Request 98
+
+- Asked: Restore the previous visual style of the joint nodes and controls sidebar.
+- Changed: Restored the deleted node stress, endpoint, member preview, resize-handle, and segment-length styles. Kept the controls sidebar sections in a single vertical column at tablet widths, matching the project layout spec. The calibration button remains absent.
+- Worked: The inline JavaScript parses. Static checks confirm the node and endpoint styles, single-column sidebar rule, and continued absence of the calibration button. Browser visuals were not checked.
+
+### Request 99
+
+- Asked: Keep controls in a right-side sidebar instead of placing them under the canvas.
+- Changed: Clarified `spec.md` that the sidebar stays alongside the canvas at desktop and tablet widths and stacks below only on narrow mobile. Changed the compact layout in `index.html` to a three-column toolbar/canvas/sidebar grid through 980 px; only the <=640 px mobile layout stacks the sidebar.
+- Worked: Inline JavaScript parses. Static checks confirm the compact grid has three columns and the sidebar remains in its own column; the narrow mobile breakpoint still stacks controls. Browser layout was not visually verified.
+
+### Request 100
+
+- Asked: Remove free-fall calibration from the user interface.
+- Changed: Removed the passive free-fall target section and gravity-dependent target-time display from `index.html`. Updated `spec.md` to keep calibration procedures external and out of the app UI. Left the test cases and expected results in `02_validation/calibration_test_cases.md`.
+- Worked: The inline JavaScript parses. Static checks confirm no free-fall calibration UI remains and the external validation document is present.
+
+### Request 101
+
+- Asked: Align the floor-mass ghost so it fills the grid cells like the placed mass instead of being centered on a grid line.
+- Changed: Updated `spec.md` placement behavior. Changed `showPlacementGhost` to use the same snapped top-left footprint offsets and boundary clamping as `addElement`, and removed structural-anchor snapping for floor-mass previews.
+- Worked: The inline JavaScript parses. A static position check confirms preview and placed-mass coordinates match for a sample 40×20 px mass; the ghost uses half-footprint offsets and no longer anchors to nearby brace nodes. Browser visual verification was not available.
