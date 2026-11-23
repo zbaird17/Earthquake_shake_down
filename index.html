@@ -955,6 +955,19 @@
       highScoreDisplays[mode].textContent = score.toFixed(2) + " g";
     });
 
+    function resetHighScores() {
+      Object.keys(highScores).forEach((mode) => {
+        highScores[mode] = 0;
+        highScoreDisplays[mode].textContent = "0.00 g";
+        try {
+          window.localStorage.removeItem(HIGH_SCORE_STORAGE_PREFIX + mode);
+          window.localStorage.removeItem(LEGACY_HIGH_SCORE_STORAGE_PREFIX + mode);
+        } catch (error) {
+          // The in-memory scores are still reset if browser storage is unavailable.
+        }
+      });
+    }
+
     function recordHighScore(scoreG) {
       if (!Number.isFinite(scoreG) || scoreG <= highScores[activeGravityMode]) return;
       highScores[activeGravityMode] = scoreG;
@@ -982,22 +995,50 @@
 
     function getConnectedJointNodes() {
       const nodes = new Map();
-      designLayer.querySelectorAll(".placed-element").forEach((element) => {
+      const elements = [...designLayer.querySelectorAll(".placed-element")];
+      const addMemberAtPoint = (point, element) => {
+        if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return;
+        const key = jointKey(point.x, point.y);
+        if (!nodes.has(key)) nodes.set(key, { x: snap(point.x), y: snap(point.y), members: new Set() });
+        nodes.get(key).members.add(element);
+      };
+
+      elements.forEach((element) => {
         const type = element.dataset.tool;
         if (type !== "Column" && type !== "Beam" && type !== "Brace") return;
         [
           { x: Number(element.dataset.startX), y: Number(element.dataset.startY) },
           { x: Number(element.dataset.endX), y: Number(element.dataset.endY) }
+        ].forEach((point) => addMemberAtPoint(point, element));
+      });
+
+      const hostMembers = elements.filter((element) =>
+        element.dataset.tool === "Column" || element.dataset.tool === "Beam"
+      );
+      elements.filter((element) => element.dataset.tool === "Brace").forEach((brace) => {
+        [
+          { x: Number(brace.dataset.startX), y: Number(brace.dataset.startY) },
+          { x: Number(brace.dataset.endX), y: Number(brace.dataset.endY) }
         ].forEach((point) => {
-          if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return;
-          const key = jointKey(point.x, point.y);
-          if (!nodes.has(key)) nodes.set(key, { x: snap(point.x), y: snap(point.y), count: 0 });
-          nodes.get(key).count += 1;
+          hostMembers.forEach((host) => {
+            const start = { x: Number(host.dataset.startX), y: Number(host.dataset.startY) };
+            const end = { x: Number(host.dataset.endX), y: Number(host.dataset.endY) };
+            const dx = end.x - start.x;
+            const dy = end.y - start.y;
+            const lengthSquared = dx * dx + dy * dy;
+            if (!lengthSquared) return;
+            const t = ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared;
+            if (t < 0 || t > 1) return;
+            const projection = { x: start.x + t * dx, y: start.y + t * dy };
+            if (Math.hypot(projection.x - point.x, projection.y - point.y) <= 1) {
+              addMemberAtPoint(point, host);
+            }
+          });
         });
       });
       const tableTop = getTableBoundary();
       return [...nodes.entries()]
-        .filter(([, node]) => node.count >= 2 || node.y >= tableTop - 1)
+        .filter(([, node]) => node.members.size >= 2 || node.y >= tableTop - 1)
         .map(([key, node]) => ({ key, x: node.x, y: node.y }));
     }
 
@@ -1948,6 +1989,7 @@
 
     function clearStructure() {
       if (isTesting) return;
+      resetHighScores();
       momentJointKeys.clear();
       testElapsed = 0;
       testPeakAcceleration = 0;
@@ -2322,6 +2364,29 @@
       group.constraints.push(constraint);
     }
 
+    function addBraceRotationLock(group, hostEntry, farEntry, node, farPoint) {
+      const isColumn = hostEntry.body.element?.dataset.tool === "Column";
+      const secondaryPoint = isColumn
+        ? { x: node.x + GRID * 1.25, y: node.y }
+        : { x: node.x, y: node.y + GRID * 1.25 };
+      const initialLength = Math.hypot(
+        secondaryPoint.x - farPoint.x,
+        secondaryPoint.y - farPoint.y
+      );
+      const constraint = window.Matter.Constraint.create({
+        bodyA: hostEntry.body,
+        pointA: worldPointToBodyLocal(hostEntry.body, secondaryPoint),
+        bodyB: farEntry.body,
+        pointB: worldPointToBodyLocal(farEntry.body, farPoint),
+        stiffness: 1,
+        damping: 0.5,
+        length: initialLength
+      });
+      window.Matter.Composite.add(physicsEngine.world, constraint);
+      group.constraints.push(constraint);
+      return constraint;
+    }
+
     app.addEventListener("pointerdown", () => {
       if (!isTesting) clearJointStressIndicators();
     }, true);
@@ -2527,22 +2592,50 @@
         const startEntry = startGroup?.entries.find((entry) => entry.body.element?.dataset.tool !== "Floor mass");
         const endEntry = endGroup?.entries.find((entry) => entry.body.element?.dataset.tool !== "Floor mass");
         if (!startEntry || !endEntry || startEntry.body === endEntry.body) return;
+        const startPoint = { x: Number(brace.dataset.startX), y: Number(brace.dataset.startY) };
+        const endPoint = { x: Number(brace.dataset.endX), y: Number(brace.dataset.endY) };
         const length = Math.hypot(
-          Number(brace.dataset.endX) - Number(brace.dataset.startX),
-          Number(brace.dataset.endY) - Number(brace.dataset.startY)
+          endPoint.x - startPoint.x,
+          endPoint.y - startPoint.y
         );
         const constraint = Constraint.create({
           bodyA: startEntry.body,
-          pointA: worldPointToBodyLocal(startEntry.body, { x: Number(brace.dataset.startX), y: Number(brace.dataset.startY) }),
+          pointA: worldPointToBodyLocal(startEntry.body, startPoint),
           bodyB: endEntry.body,
-          pointB: worldPointToBodyLocal(endEntry.body, { x: Number(brace.dataset.endX), y: Number(brace.dataset.endY) }),
+          pointB: worldPointToBodyLocal(endEntry.body, endPoint),
           stiffness: 1,
           damping: 0.5,
           length
         });
         Composite.add(physicsEngine.world, constraint);
-        if (startGroup) startGroup.constraints.push(constraint);
-        if (endGroup && endGroup !== startGroup) endGroup.constraints.push(constraint);
+        startGroup.constraints.push(constraint);
+        if (endGroup !== startGroup) endGroup.constraints.push(constraint);
+
+        const makeBraceEndEntry = (hostEntry, point) => ({
+          body: hostEntry.body,
+          node: point,
+          offset: {
+            x: point.x - hostEntry.body.initialPosition.x,
+            y: point.y - hostEntry.body.initialPosition.y
+          },
+          massShare: 0,
+          brace
+        });
+        const startBraceEntry = makeBraceEndEntry(startEntry, startPoint);
+        const endBraceEntry = makeBraceEndEntry(endEntry, endPoint);
+        startGroup.entries.push(startBraceEntry);
+        endGroup.entries.push(endBraceEntry);
+        startGroup.memberLinks.push({ a: startEntry, b: startBraceEntry, constraint, active: true });
+        endGroup.memberLinks.push({ a: endEntry, b: endBraceEntry, constraint, active: true });
+
+        if (startGroup.connectionType === "moment") {
+          const rotationLock = addBraceRotationLock(startGroup, startEntry, endEntry, startPoint, endPoint);
+          if (endGroup !== startGroup) endGroup.constraints.push(rotationLock);
+        }
+        if (endGroup.connectionType === "moment") {
+          const rotationLock = addBraceRotationLock(endGroup, endEntry, startEntry, endPoint, startPoint);
+          if (startGroup !== endGroup) startGroup.constraints.push(rotationLock);
+        }
       });
 
       Composite.add(physicsEngine.world, physicsBodies.map((body) => body));
@@ -2554,6 +2647,8 @@
         let nearestBeam = null;
         let nearestDistance = Infinity;
         const massBottomY = massBody.bounds.max.y;
+        const massLeftX = massBody.bounds.min.x;
+        const massRightX = massBody.bounds.max.x;
         beamBodies.forEach((beamBody) => {
           const beamElement = beamBody.element;
           const beamY = (Number(beamElement.dataset.startY) + Number(beamElement.dataset.endY)) / 2;
@@ -2562,7 +2657,9 @@
           const beamLeft = Math.min(startX, endX);
           const beamRight = Math.max(startX, endX);
           const supportedVertically = Math.abs(massBottomY - beamY) <= 12;
-          if (supportedVertically && massCenterX >= beamLeft - 10 && massCenterX <= beamRight + 10) {
+          const bothMassCornersOverBeam = massLeftX >= beamLeft - 1 && massRightX <= beamRight + 1;
+          if (supportedVertically && bothMassCornersOverBeam &&
+              massCenterX >= beamLeft - 10 && massCenterX <= beamRight + 10) {
             const distance = Math.abs(massCenterY - beamY);
             if (distance < nearestDistance) {
               nearestDistance = distance;
@@ -2574,22 +2671,13 @@
         massBody.hasBeamSupport = true;
         massBody.collisionFilter.mask = COLLISION_CATEGORY_MASS | COLLISION_CATEGORY_TABLE;
         const beamElement = nearestBeam.element;
-        const beamStartX = Number(beamElement.dataset.startX);
-        const beamEndX = Number(beamElement.dataset.endX);
         const beamY = (Number(beamElement.dataset.startY) + Number(beamElement.dataset.endY)) / 2;
-        [beamStartX, beamEndX].forEach((x) => {
-          const group = jointGroupByKey.get(snap(x) + "," + snap(beamY));
-          if (group) group.matterMass += massBody.mass / 2;
-        });
-        const beamLeft = Math.min(beamStartX, beamEndX);
-        const beamRight = Math.max(beamStartX, beamEndX);
-        const supportLeftX = Math.max(beamLeft, massBody.bounds.min.x);
-        const supportRightX = Math.min(beamRight, massBody.bounds.max.x);
-        if (supportRightX <= supportLeftX) return;
         [
-          { x: supportLeftX, y: massBottomY, beamNodeX: beamLeft },
-          { x: supportRightX, y: massBottomY, beamNodeX: beamRight }
+          { x: massLeftX, y: massBottomY },
+          { x: massRightX, y: massBottomY }
         ].forEach((node) => {
+          const group = jointGroupByKey.get(snap(node.x) + "," + snap(beamY));
+          if (group) group.matterMass += massBody.mass / 2;
           const constraint = Constraint.create({
             bodyA: nearestBeam,
             pointA: worldPointToBodyLocal(nearestBeam, node),
@@ -2600,7 +2688,6 @@
             length: 0
           });
           Composite.add(physicsEngine.world, constraint);
-          const group = jointGroupByKey.get(snap(node.beamNodeX) + "," + snap(beamY));
           if (group) group.constraints.push(constraint);
         });
       });
@@ -2690,6 +2777,11 @@
           group.failed = true;
           group.constraints.forEach((constraint) => {
             window.Matter.Composite.remove(physicsEngine.world, constraint, true);
+            jointGroups.forEach((linkedGroup) => {
+              linkedGroup.memberLinks.forEach((link) => {
+                if (link.constraint === constraint) link.active = false;
+              });
+            });
           });
           group.memberLinks.forEach((link) => { link.active = false; });
           if (!failedGroup) failedGroup = group;
@@ -2915,6 +3007,7 @@
           physicsAnimationId = requestAnimationFrame(physicsAnimation);
         } else {
           isTesting = false;
+          physicsSnapshots = [];
         }
       } else {
         testFinished = false;
@@ -2948,24 +3041,26 @@
         physicsSnapshots = [];
         clearJointStressIndicators();
       }
-      document.querySelectorAll(".tool").forEach((tool) => { tool.disabled = testing; });
-      document.querySelectorAll(".gravity-btn").forEach((button) => { button.disabled = testing; });
-      document.getElementById("starterBtn").disabled = testing;
-      document.getElementById("clearBtn").disabled = testing;
+      const testIsActive = isTesting;
+      const startupFailed = testing && !testIsActive;
+      document.querySelectorAll(".tool").forEach((tool) => { tool.disabled = testIsActive; });
+      document.querySelectorAll(".gravity-btn").forEach((button) => { button.disabled = testIsActive; });
+      document.getElementById("starterBtn").disabled = testIsActive;
+      document.getElementById("clearBtn").disabled = testIsActive;
       const startButton = document.getElementById("startBtn");
-      startButton.textContent = testing ? "Test in progress" : "Start test";
+      startButton.textContent = testIsActive ? "Test in progress" : "Start test";
       startButton.classList.remove("result-success", "result-failure");
-      startButton.disabled = testing;
+      startButton.disabled = testIsActive;
       statusLine.classList.remove("result-success", "result-failure");
-      document.getElementById("stopBtn").disabled = !testing;
+      document.getElementById("stopBtn").disabled = !testIsActive;
       renderJointEditMarkers();
-      document.querySelector(".canvas-label").textContent = testing
+      document.querySelector(".canvas-label").textContent = testIsActive
         ? "1 ft grid · Test mode"
         : "1 ft grid · Design mode";
-      if (testing) {
+      if (testIsActive) {
         selectElement(null);
         statusLine.textContent = "Test in progress";
-      } else {
+      } else if (!startupFailed) {
         statusLine.textContent = "Test stopped · " + testElapsed.toFixed(2) + " s";
       }
     }
