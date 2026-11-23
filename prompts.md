@@ -1132,4 +1132,22 @@
 
 - Asked: Commit the approved changes.
 - Changed: Prepared the pending app, specification, validation, and prompt-log updates for a single commit.
-- Worked: `git diff --check` passes. Commit `86663ec` contains the four updated project files.
+- Worked: `git diff --check` passes. Commit `c17e087` contains the four updated project files.
+
+### Request 127
+
+- Asked: Make the moment connections a bit stiffer.
+- Changed: Updated `spec.md` to specify a modestly stronger rotational restraint. Increased the moment-lock attachment lever arm in `index.html` from 1.0 to 1.25 grid spacings and raised its damping from 0.50 to 0.55; pinned-joint constraints are unchanged.
+- Worked: `git diff --check` passes. This should slightly reduce moment-joint rotation, but the change has not been run in the browser.
+
+### Request 128
+
+- Asked: Move moment-frame connection requirements into a new section under `Features`; also reported that the stronger connections behaved like a mass damper.
+- Changed: Moved the pinned/moment behavior, P/M badge, cost, and stiffness details out of `Inputs` into a new `Features > Moment-Frame Connections` subsection. Restored moment-lock damping from 0.55 to the prior 0.50 baseline while retaining the 1.25-grid lever arm, so the stiffness increase does not add extra damping.
+- Worked: `git diff --check` passes. The spec now places all moment-frame feature behavior under `Features`; the revised physics behavior has not been run in the browser.
+
+### Request 129
+
+- Asked: Commit the moment-frame spec and damping changes.
+- Changed: Prepared the approved `index.html`, `spec.md`, and `prompts.md` updates for a single commit.
+- Worked: `git diff --check` passes. Commit `1d5755b` contains the three updated project files.

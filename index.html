@@ -2308,7 +2308,7 @@
     }
 
     function addMomentRotationLock(group, bodyA, bodyB, node) {
-      const secondaryPoint = { x: node.x + GRID, y: node.y };
+      const secondaryPoint = { x: node.x + GRID * 1.25, y: node.y };
       const constraint = window.Matter.Constraint.create({
         bodyA,
         pointA: worldPointToBodyLocal(bodyA, secondaryPoint),
