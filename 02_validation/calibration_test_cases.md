@@ -18,13 +18,13 @@ Measure 10 complete cycles. Compare measured cycle duration and extreme displace
 
 | Case | Amplitude (in) | Frequency (Hz) | Expected period (s) | Expected duration, 10 cycles (s) | Expected extreme displacement (in) | Actual measurements | Result |
 | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |
-| ST-01 (default) | 6 | 5 | 0.2 | 2 | 6 | Record during verification | Pending |
+| ST-01 (default) | 4 | 3 | 0.3333 | 3.3333 | 4 | Record during verification | Pending |
 | ST-02 (minimum frequency) | 6 | 0.1 | 10 | 100 | 6 | Record during verification | Pending |
 | ST-03 (maximum frequency) | 6 | 10 | 0.1 | 1 | 6 | Record during verification | Pending |
 | ST-04 (zero amplitude) | 0 | 5 | 0.2 | 2 | 0 | Record during verification | Pending |
 | ST-05 (maximum amplitude) | 12 | 5 | 0.2 | 2 | 12 | Record during verification | Pending |
 
-The default case's expected peak horizontal acceleration is `Aω² = 0.5 ft × (2π × 5 Hz)² = 493.48 ft/s²`. That is approximately 15.33 g under Earth gravity. The peak acceleration value changes with the selected gravity mode; cycle period and displacement do not.
+The default case's expected peak horizontal acceleration is `Aω² = (4/12) ft × (2π × 3 Hz)² = 118.44 ft/s²`, or approximately 3.68 standard g using `1 g = 32.2 ft/s²`. Peak shaking acceleration in standard g is the same in Earth, Mars, and Moon modes; the selected gravity mode changes only vertical gravitational acceleration and weight. Cycle period and displacement do not change with gravity mode.
 
 ## Result Record
 

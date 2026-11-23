@@ -31,6 +31,7 @@
     }
 
     button, input { font: inherit; }
+    .tool, .button, .gravity-btn, .collapse-btn { touch-action: manipulation; }
 
     .app {
       min-height: 100vh;
@@ -121,7 +122,7 @@
       background: #eaf2ff;
     }
 
-    .tool:disabled, .button:disabled {
+    .tool:disabled, .button:disabled, .gravity-btn:disabled {
       opacity: 0.45;
       cursor: not-allowed;
     }
@@ -261,6 +262,36 @@
     .placed-element.brace.right { transform: rotate(45deg); }
     .placed-element.brace.left { transform: rotate(-45deg); }
 
+    .joint-edit-marker {
+      position: absolute;
+      z-index: 18;
+      width: 18px;
+      height: 18px;
+      padding: 0;
+      transform: translate(-50%, -50%);
+      border: 2px solid #475569;
+      border-radius: 50%;
+      background: #fff;
+      color: #334155;
+      cursor: pointer;
+      font-size: 9px;
+      font-weight: 900;
+      line-height: 14px;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.3);
+      touch-action: manipulation;
+    }
+
+    .joint-edit-marker.moment {
+      border-color: #b45309;
+      background: #fbbf24;
+      color: #451a03;
+    }
+
+    .joint-edit-marker:focus-visible {
+      outline: 3px solid #2563eb;
+      outline-offset: 2px;
+    }
+
     .placed-element.floor-mass {
       width: 40px;
       height: 20px;
@@ -398,6 +429,7 @@
     .joint-stress-indicator.normal { background: var(--normal); }
     .joint-stress-indicator.elevated { background: var(--elevated); }
     .joint-stress-indicator.failed { background: var(--failed); animation: joint-failure-pulse 500ms ease-in-out infinite alternate; }
+    .joint-stress-indicator.moment { outline: 2px solid #b45309; outline-offset: 2px; }
 
     @keyframes joint-failure-pulse {
       from { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.2); }
@@ -500,6 +532,13 @@
       color: var(--muted);
     }
 
+    .helper-text {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
     .control-row {
       display: grid;
       grid-template-columns: 72px 1fr 74px;
@@ -579,6 +618,15 @@
       margin-top: 5px;
       font-size: 20px;
       font-weight: 900;
+    }
+
+    .readouts.panel {
+      margin-top: 12px;
+      padding: 12px;
+    }
+
+    .readouts .metric-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     .status-line {
@@ -723,6 +771,7 @@
       }
 
       .metric-grid { grid-template-columns: 1fr 1fr; }
+      .readouts .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
       .section {
         border: 0;
@@ -748,22 +797,21 @@
         <button class="tool active" type="button" data-tool="Column">
           <span class="tool-icon" aria-hidden="true">▥</span>
           <span class="tool-name">Column</span>
-          <span class="tool-price">$50/ft</span>
+          <span class="tool-price">$90/ft</span>
         </button>
         <button class="tool" type="button" data-tool="Beam">
           <span class="tool-icon" aria-hidden="true">━</span>
           <span class="tool-name">Beam</span>
-          <span class="tool-price">$40/ft</span>
+          <span class="tool-price">$70/ft</span>
         </button>
         <button class="tool" type="button" data-tool="Brace">
           <span class="tool-icon" aria-hidden="true">╱</span>
           <span class="tool-name">Brace</span>
-          <span class="tool-price">$30/ft</span>
+          <span class="tool-price">$40/ft</span>
         </button>
         <button class="tool" type="button" data-tool="Floor mass">
           <span class="tool-icon" aria-hidden="true">▰</span>
           <span class="tool-name">Mass</span>
-          <span class="tool-price">$20/ft</span>
         </button>
       </aside>
 
@@ -779,11 +827,42 @@
             <span><i class="legend-dot" style="background: var(--failed)"></i>Failed</span>
           </div>
         </div>
+        <section class="readouts panel" aria-label="Test readouts">
+          <h2 class="section-title">Readouts</h2>
+          <div class="metric-grid">
+            <div class="metric">
+              <span class="metric-label">Total cost</span>
+              <span class="metric-value" id="totalCostValue">$0</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Elapsed</span>
+              <span class="metric-value" id="elapsedValue">0.00 s</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Peak accel.</span>
+              <span class="metric-value" id="peakAccelValue">0.00 g</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Earth high score</span>
+              <span class="metric-value" id="highScoreEarth">0.00 g</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Mars high score</span>
+              <span class="metric-value" id="highScoreMars">0.00 g</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Moon high score</span>
+              <span class="metric-value" id="highScoreMoon">0.00 g</span>
+            </div>
+          </div>
+          <p class="helper-text">Joint badges: P = pinned; M = moment-frame (+$600 per node).</p>
+          <div class="status-line" id="statusLine">Design mode · Ready to test</div>
+        </section>
       </section>
 
       <aside class="sidebar panel" id="sidebar">
         <div class="sidebar-header">
-          <h2>Controls & readouts</h2>
+          <h2>Test controls</h2>
           <button class="collapse-btn" id="collapseBtn" type="button" aria-expanded="true" aria-label="Collapse sidebar">−</button>
         </div>
         <div class="sidebar-body">
@@ -791,13 +870,13 @@
             <h3 class="section-title">Shaking</h3>
             <div class="control-row">
               <label for="amplitudeRange">Amplitude (in)</label>
-              <input id="amplitudeRange" type="range" min="0" max="12" step="0.1" value="6">
-              <input id="amplitudeNumber" class="number-box" type="number" min="0" max="12" step="0.1" value="6" aria-label="Amplitude in inches">
+              <input id="amplitudeRange" type="range" min="0" max="12" step="0.1" value="4">
+              <input id="amplitudeNumber" class="number-box" type="number" min="0" max="12" step="0.1" value="4" aria-label="Amplitude in inches">
             </div>
             <div class="control-row">
               <label for="frequencyRange">Frequency (Hz)</label>
-              <input id="frequencyRange" type="range" min="0.1" max="10" step="0.1" value="5">
-              <input id="frequencyNumber" class="number-box" type="number" min="0.1" max="10" step="0.1" value="5" aria-label="Frequency in hertz">
+              <input id="frequencyRange" type="range" min="0.1" max="10" step="0.1" value="3">
+              <input id="frequencyNumber" class="number-box" type="number" min="0.1" max="10" step="0.1" value="3" aria-label="Frequency in hertz">
             </div>
           </section>
 
@@ -808,29 +887,6 @@
               <button class="gravity-btn" type="button" data-gravity="mars">Mars<br>12.21</button>
               <button class="gravity-btn" type="button" data-gravity="moon">Moon<br>5.33</button>
             </div>
-          </section>
-
-          <section class="section">
-            <h3 class="section-title">Readouts</h3>
-            <div class="metric-grid">
-              <div class="metric">
-                <span class="metric-label">Total cost</span>
-                <span class="metric-value" id="totalCostValue">$0</span>
-              </div>
-              <div class="metric">
-                <span class="metric-label">Elapsed</span>
-                <span class="metric-value" id="elapsedValue">0.00 s</span>
-              </div>
-              <div class="metric">
-                <span class="metric-label">Peak accel.</span>
-                <span class="metric-value" id="peakAccelValue">0.00 g</span>
-              </div>
-              <div class="metric">
-                <span class="metric-label">High score</span>
-                <span class="metric-value">0.52 g</span>
-              </div>
-            </div>
-            <div class="status-line" id="statusLine">Design mode · Ready to test</div>
           </section>
 
           <section class="section">
@@ -859,6 +915,56 @@
     const emptyHint = document.getElementById("emptyHint");
     const shakeTable = document.querySelector(".shake-table");
     const GRID = 20;
+    const STANDARD_GRAVITY_FTPS2 = 32.2;
+    const GRAVITY_ACCELERATION_FTPS2 = { earth: 32.2, mars: 12.21, moon: 5.33 };
+    const COLLISION_CATEGORY_STRUCTURE = 0x0001;
+    const COLLISION_CATEGORY_MASS = 0x0002;
+    const COLLISION_CATEGORY_TABLE = 0x0004;
+    const HIGH_SCORE_STORAGE_PREFIX = "earthquakeShakeDown.highScoreStandardG.";
+    const LEGACY_HIGH_SCORE_STORAGE_PREFIX = "earthquakeShakeDown.highScoreG.";
+    function loadHighScore(mode) {
+      try {
+        const currentValue = window.localStorage.getItem(HIGH_SCORE_STORAGE_PREFIX + mode);
+        const currentScore = Number(currentValue);
+        if (currentValue !== null && Number.isFinite(currentScore) && currentScore > 0) return currentScore;
+        const legacyValue = window.localStorage.getItem(LEGACY_HIGH_SCORE_STORAGE_PREFIX + mode);
+        const legacyScore = Number(legacyValue);
+        if (legacyValue === null || !Number.isFinite(legacyScore) || legacyScore <= 0) return 0;
+        const standardScore = legacyScore * GRAVITY_ACCELERATION_FTPS2[mode] / STANDARD_GRAVITY_FTPS2;
+        try {
+          window.localStorage.setItem(HIGH_SCORE_STORAGE_PREFIX + mode, String(standardScore));
+        } catch (error) {
+          // Keep the converted score available for this session if migration cannot be saved.
+        }
+        return standardScore;
+      } catch (error) {
+        return 0;
+      }
+    }
+    const highScores = {
+      earth: loadHighScore("earth"),
+      mars: loadHighScore("mars"),
+      moon: loadHighScore("moon")
+    };
+    const highScoreDisplays = {
+      earth: document.getElementById("highScoreEarth"),
+      mars: document.getElementById("highScoreMars"),
+      moon: document.getElementById("highScoreMoon")
+    };
+    Object.entries(highScores).forEach(([mode, score]) => {
+      highScoreDisplays[mode].textContent = score.toFixed(2) + " g";
+    });
+
+    function recordHighScore(scoreG) {
+      if (!Number.isFinite(scoreG) || scoreG <= highScores[activeGravityMode]) return;
+      highScores[activeGravityMode] = scoreG;
+      highScoreDisplays[activeGravityMode].textContent = scoreG.toFixed(2) + " g";
+      try {
+        window.localStorage.setItem(HIGH_SCORE_STORAGE_PREFIX + activeGravityMode, String(scoreG));
+      } catch (error) {
+        // Keep the current-session score visible if browser storage is unavailable.
+      }
+    }
     let selectedTool = "Column";
     let selectedElement = null;
     let isTesting = false;
@@ -867,6 +973,72 @@
     let pendingSegment = null;
     let segmentPreview = null;
     let placementGhost = null;
+    const momentJointKeys = new Set();
+    const MOMENT_CONNECTION_COST = 600;
+
+    function jointKey(x, y) {
+      return snap(x) + "," + snap(y);
+    }
+
+    function getConnectedJointNodes() {
+      const nodes = new Map();
+      designLayer.querySelectorAll(".placed-element").forEach((element) => {
+        const type = element.dataset.tool;
+        if (type !== "Column" && type !== "Beam" && type !== "Brace") return;
+        [
+          { x: Number(element.dataset.startX), y: Number(element.dataset.startY) },
+          { x: Number(element.dataset.endX), y: Number(element.dataset.endY) }
+        ].forEach((point) => {
+          if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return;
+          const key = jointKey(point.x, point.y);
+          if (!nodes.has(key)) nodes.set(key, { x: snap(point.x), y: snap(point.y), count: 0 });
+          nodes.get(key).count += 1;
+        });
+      });
+      const tableTop = getTableBoundary();
+      return [...nodes.entries()]
+        .filter(([, node]) => node.count >= 2 || node.y >= tableTop - 1)
+        .map(([key, node]) => ({ key, x: node.x, y: node.y }));
+    }
+
+    function renderJointEditMarkers() {
+      designLayer.querySelectorAll(".joint-edit-marker").forEach((marker) => marker.remove());
+      if (isTesting) return;
+      const nodes = getConnectedJointNodes();
+      const currentKeys = new Set(nodes.map((node) => node.key));
+      momentJointKeys.forEach((key) => {
+        if (!currentKeys.has(key)) momentJointKeys.delete(key);
+      });
+      nodes.forEach((node) => {
+        const isMoment = momentJointKeys.has(node.key);
+        const marker = document.createElement("button");
+        marker.type = "button";
+        marker.className = "joint-edit-marker" + (isMoment ? " moment" : "");
+        marker.textContent = isMoment ? "M" : "P";
+        marker.style.left = Math.max(9, Math.min(designLayer.clientWidth - 9, node.x + 12)) + "px";
+        marker.style.top = Math.max(9, node.y - 12) + "px";
+        marker.setAttribute(
+          "aria-label",
+          (isMoment ? "Moment-frame" : "Pinned") + " joint at " + node.x + ", " + node.y + ". Click to toggle."
+        );
+        marker.title = (isMoment ? "Moment-frame (+$600)" : "Pinned (no connection premium)") + " · click to toggle";
+        marker.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        });
+        marker.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (momentJointKeys.has(node.key)) momentJointKeys.delete(node.key);
+          else momentJointKeys.add(node.key);
+          updateTotalCost();
+          statusLine.textContent = momentJointKeys.has(node.key)
+            ? "Moment-frame connection set at (" + node.x + ", " + node.y + ")"
+            : "Pinned connection set at (" + node.x + ", " + node.y + ")";
+        });
+        designLayer.appendChild(marker);
+      });
+    }
 
     const elementSizes = {
       "Column": { width: 10, height: 60 },
@@ -988,22 +1160,25 @@
           if (Number.isFinite(startX) && Number.isFinite(endX) &&
               Number.isFinite(startY) && Number.isFinite(endY)) {
             const lengthFeet = Math.hypot(endX - startX, endY - startY) / GRID;
-            total += lengthFeet * (type === "Column" ? 50 : 40);
+            total += lengthFeet * (type === "Column" ? 90 : 70);
           }
         } else if (type === "Brace") {
           const dx = Number(element.dataset.endX) - Number(element.dataset.startX);
           const dy = Number(element.dataset.endY) - Number(element.dataset.startY);
           if (Number.isFinite(dx) && Number.isFinite(dy)) {
-            total += Math.hypot(dx, dy) / GRID * 30;
+            total += Math.hypot(dx, dy) / GRID * 40;
           }
-        } else if (type === "Floor mass") {
-          const widthFeet = parseFloat(element.style.width || 0) / GRID;
-          const heightFeet = parseFloat(element.style.height || 0) / GRID;
-          total += widthFeet * heightFeet * 20;
         }
       });
+      const connectedNodes = getConnectedJointNodes();
+      const connectedKeys = new Set(connectedNodes.map((node) => node.key));
+      momentJointKeys.forEach((key) => {
+        if (!connectedKeys.has(key)) momentJointKeys.delete(key);
+      });
+      total += connectedNodes.filter((node) => momentJointKeys.has(node.key)).length * MOMENT_CONNECTION_COST;
       const totalCostValue = document.getElementById("totalCostValue");
       if (totalCostValue) totalCostValue.textContent = "$" + Math.round(total).toLocaleString("en-US");
+      renderJointEditMarkers();
     }
 
     function selectElement(element) {
@@ -1773,6 +1948,17 @@
 
     function clearStructure() {
       if (isTesting) return;
+      momentJointKeys.clear();
+      testElapsed = 0;
+      testPeakAcceleration = 0;
+      document.getElementById("elapsedValue").textContent = "0.00 s";
+      document.getElementById("peakAccelValue").textContent = "0.00 g";
+      const startButton = document.getElementById("startBtn");
+      startButton.textContent = "Start test";
+      startButton.disabled = false;
+      startButton.classList.remove("result-success", "result-failure");
+      document.getElementById("stopBtn").disabled = true;
+      statusLine.classList.remove("result-success", "result-failure");
       clearJointStressIndicators();
       cancelPendingSegment();
       removePlacementGhost();
@@ -2099,15 +2285,41 @@
     const FAILED_JOINT_FORCE_KIP = 15;
 
     function clearJointStressIndicators() {
-      jointGroups.forEach((group) => group.indicator?.remove());
+      jointGroups.forEach((group) => {
+        group.indicators?.forEach((indicator) => indicator.remove());
+      });
       jointGroups = [];
       jointGroupByKey.clear();
     }
 
     function gravityAcceleration() {
-      if (activeGravityMode === "mars") return 12.21;
-      if (activeGravityMode === "moon") return 5.33;
-      return 32.2;
+      return GRAVITY_ACCELERATION_FTPS2[activeGravityMode];
+    }
+
+    function worldPointToBodyLocal(body, point) {
+      const dx = point.x - body.position.x;
+      const dy = point.y - body.position.y;
+      const cosine = Math.cos(body.angle);
+      const sine = Math.sin(body.angle);
+      return {
+        x: dx * cosine + dy * sine,
+        y: -dx * sine + dy * cosine
+      };
+    }
+
+    function addMomentRotationLock(group, bodyA, bodyB, node) {
+      const secondaryPoint = { x: node.x + GRID, y: node.y };
+      const constraint = window.Matter.Constraint.create({
+        bodyA,
+        pointA: worldPointToBodyLocal(bodyA, secondaryPoint),
+        bodyB,
+        pointB: worldPointToBodyLocal(bodyB, secondaryPoint),
+        stiffness: 1,
+        damping: 0.5,
+        length: 0
+      });
+      window.Matter.Composite.add(physicsEngine.world, constraint);
+      group.constraints.push(constraint);
     }
 
     app.addEventListener("pointerdown", () => {
@@ -2138,7 +2350,12 @@
         tableTop + shakeTable.offsetHeight / 2,
         shakeTable.offsetWidth,
         shakeTable.offsetHeight,
-        { isStatic: true, friction: 0.8, restitution: 0.05 }
+        {
+          isStatic: true,
+          friction: 0.8,
+          restitution: 0.05,
+          collisionFilter: { category: COLLISION_CATEGORY_TABLE, mask: 0xFFFFFFFF }
+        }
       );
       Composite.add(physicsEngine.world, physicsTableBody);
 
@@ -2146,6 +2363,7 @@
       designLayer.querySelectorAll(".placed-element").forEach((element) => {
         const type = element.dataset.tool;
         if (type !== "Column" && type !== "Beam" && type !== "Brace" && type !== "Floor mass") return;
+        if (type === "Brace") return;
 
         let body = null;
         if (type === "Floor mass") {
@@ -2158,7 +2376,8 @@
           body = Bodies.rectangle(cx, cy, width, height, {
             restitution: 0.1,
             friction: 0.7,
-            density: 0.002
+            density: 0.002,
+            collisionFilter: { category: COLLISION_CATEGORY_MASS, mask: 0xFFFFFFFF }
           });
         } else {
           const startX = Number(element.dataset.startX);
@@ -2185,7 +2404,10 @@
             restitution: 0.05,
             friction: 0.9,
             density: type === "Floor mass" ? 0.002 : 0.001,
-            angle
+            angle,
+            collisionFilter: type === "Floor mass"
+              ? { category: COLLISION_CATEGORY_MASS, mask: 0xFFFFFFFF }
+              : { category: COLLISION_CATEGORY_STRUCTURE, mask: COLLISION_CATEGORY_MASS }
           });
         }
 
@@ -2242,69 +2464,85 @@
           key,
           x: nodeX,
           y: nodeY,
+          connectionType: momentJointKeys.has(key) ? "moment" : "pinned",
           entries,
           constraints: [],
+          memberLinks: [],
           matterMass: entries.reduce((sum, entry) => sum + entry.massShare, 0),
           forceKip: 0,
           failed: false,
-          indicator: null
+          indicators: new Map()
         };
         jointGroups.push(group);
         jointGroupByKey.set(key, group);
         entries.forEach((entry, index) => {
           entries.slice(index + 1).forEach((other) => {
-            const pointA = {
-              x: entry.node.x - entry.body.position.x,
-              y: entry.node.y - entry.body.position.y
-            };
-            const pointB = {
-              x: other.node.x - other.body.position.x,
-              y: other.node.y - other.body.position.y
-            };
             const constraint = Constraint.create({
               bodyA: entry.body,
-              pointA,
+              pointA: worldPointToBodyLocal(entry.body, entry.node),
               bodyB: other.body,
-              pointB,
+              pointB: worldPointToBodyLocal(other.body, other.node),
               stiffness: 1,
               damping: 0.5,
               length: 0
             });
             Composite.add(physicsEngine.world, constraint);
             group.constraints.push(constraint);
+            group.memberLinks.push({ a: entry, b: other, constraint, active: true });
+            if (group.connectionType === "moment") {
+              addMomentRotationLock(group, entry.body, other.body, { x: nodeX, y: nodeY });
+            }
           });
         });
         if (nodeY >= getTableBoundary() - 1) {
-          entries.filter((entry) => {
+          const baseEntries = entries.filter((entry) => {
             const element = entry.body.element;
             return (Number(element.dataset.startX) === nodeX && Number(element.dataset.startY) === nodeY) ||
               (Number(element.dataset.endX) === nodeX && Number(element.dataset.endY) === nodeY);
-          }).forEach((entry) => {
+          });
+          baseEntries.forEach((baseEntry) => {
             const constraint = Constraint.create({
               bodyA: physicsTableBody,
-              pointA: { x: nodeX - physicsTableBody.position.x, y: nodeY - physicsTableBody.position.y },
-              bodyB: entry.body,
-              pointB: {
-                x: nodeX - entry.body.position.x,
-                y: nodeY - entry.body.position.y
-              },
+              pointA: worldPointToBodyLocal(physicsTableBody, { x: nodeX, y: nodeY }),
+              bodyB: baseEntry.body,
+              pointB: worldPointToBodyLocal(baseEntry.body, { x: nodeX, y: nodeY }),
               stiffness: 1,
               damping: 0.5,
               length: 0
             });
             Composite.add(physicsEngine.world, constraint);
             group.constraints.push(constraint);
+            if (group.connectionType === "moment") {
+              addMomentRotationLock(group, physicsTableBody, baseEntry.body, { x: nodeX, y: nodeY });
+            }
           });
         }
-        if (group.constraints.length) {
-          const indicator = document.createElement("div");
-          indicator.className = "joint-stress-indicator normal";
-          indicator.setAttribute("aria-label", "Joint stress: normal");
-          indicator.style.left = nodeX + "px";
-          indicator.style.top = nodeY + "px";
-          group.indicator = indicator;
-          designLayer.appendChild(indicator);
-        }
+      });
+
+      designLayer.querySelectorAll(".placed-element.brace").forEach((brace) => {
+        const startKey = snap(Number(brace.dataset.startX)) + "," + snap(Number(brace.dataset.startY));
+        const endKey = snap(Number(brace.dataset.endX)) + "," + snap(Number(brace.dataset.endY));
+        const startGroup = jointGroupByKey.get(startKey);
+        const endGroup = jointGroupByKey.get(endKey);
+        const startEntry = startGroup?.entries.find((entry) => entry.body.element?.dataset.tool !== "Floor mass");
+        const endEntry = endGroup?.entries.find((entry) => entry.body.element?.dataset.tool !== "Floor mass");
+        if (!startEntry || !endEntry || startEntry.body === endEntry.body) return;
+        const length = Math.hypot(
+          Number(brace.dataset.endX) - Number(brace.dataset.startX),
+          Number(brace.dataset.endY) - Number(brace.dataset.startY)
+        );
+        const constraint = Constraint.create({
+          bodyA: startEntry.body,
+          pointA: worldPointToBodyLocal(startEntry.body, { x: Number(brace.dataset.startX), y: Number(brace.dataset.startY) }),
+          bodyB: endEntry.body,
+          pointB: worldPointToBodyLocal(endEntry.body, { x: Number(brace.dataset.endX), y: Number(brace.dataset.endY) }),
+          stiffness: 1,
+          damping: 0.5,
+          length
+        });
+        Composite.add(physicsEngine.world, constraint);
+        if (startGroup) startGroup.constraints.push(constraint);
+        if (endGroup && endGroup !== startGroup) endGroup.constraints.push(constraint);
       });
 
       Composite.add(physicsEngine.world, physicsBodies.map((body) => body));
@@ -2334,6 +2572,7 @@
         });
         if (!nearestBeam) return;
         massBody.hasBeamSupport = true;
+        massBody.collisionFilter.mask = COLLISION_CATEGORY_MASS | COLLISION_CATEGORY_TABLE;
         const beamElement = nearestBeam.element;
         const beamStartX = Number(beamElement.dataset.startX);
         const beamEndX = Number(beamElement.dataset.endX);
@@ -2342,87 +2581,117 @@
           const group = jointGroupByKey.get(snap(x) + "," + snap(beamY));
           if (group) group.matterMass += massBody.mass / 2;
         });
-        const massHalfWidth = massBody.bounds.max.x - massBody.position.x;
-        const attachmentOffset = Math.min(massHalfWidth, 120);
+        const beamLeft = Math.min(beamStartX, beamEndX);
+        const beamRight = Math.max(beamStartX, beamEndX);
+        const supportLeftX = Math.max(beamLeft, massBody.bounds.min.x);
+        const supportRightX = Math.min(beamRight, massBody.bounds.max.x);
+        if (supportRightX <= supportLeftX) return;
         [
-          { x: beamStartX, y: beamY },
-          { x: beamEndX, y: beamY }
+          { x: supportLeftX, y: massBottomY, beamNodeX: beamLeft },
+          { x: supportRightX, y: massBottomY, beamNodeX: beamRight }
         ].forEach((node) => {
           const constraint = Constraint.create({
             bodyA: nearestBeam,
-            pointA: { x: node.x - nearestBeam.position.x, y: node.y - nearestBeam.position.y },
+            pointA: worldPointToBodyLocal(nearestBeam, node),
             bodyB: massBody,
-            pointB: { x: node.x - massBody.position.x, y: node.y - massBody.position.y },
+            pointB: worldPointToBodyLocal(massBody, node),
             stiffness: 0.8,
             damping: 0.35,
             length: 0
           });
           Composite.add(physicsEngine.world, constraint);
-          const group = jointGroupByKey.get(snap(node.x) + "," + snap(node.y));
+          const group = jointGroupByKey.get(snap(node.beamNodeX) + "," + snap(beamY));
           if (group) group.constraints.push(constraint);
         });
       });
-      jointGroups.forEach((group) => {
-        if (!group.constraints.length || group.indicator) return;
-        const indicator = document.createElement("div");
-        indicator.className = "joint-stress-indicator normal";
-        indicator.setAttribute("aria-label", "Joint stress: normal");
-        indicator.style.left = group.x + "px";
-        indicator.style.top = group.y + "px";
-        group.indicator = indicator;
-        designLayer.appendChild(indicator);
-      });
       return true;
+    }
+
+    function updateGroupStressIndicator(group, state, forceKip) {
+      const roots = new Map(group.entries.map((entry) => [entry, entry]));
+      const findRoot = (entry) => {
+        let root = entry;
+        while (roots.get(root) !== root) root = roots.get(root);
+        let current = entry;
+        while (roots.get(current) !== root) {
+          const next = roots.get(current);
+          roots.set(current, root);
+          current = next;
+        }
+        return root;
+      };
+      group.memberLinks.forEach((link) => {
+        if (!link.active) return;
+        const rootA = findRoot(link.a);
+        const rootB = findRoot(link.b);
+        if (rootA !== rootB) roots.set(rootB, rootA);
+      });
+
+      const components = new Map();
+      group.entries.forEach((entry) => {
+        const root = findRoot(entry);
+        if (!components.has(root)) components.set(root, []);
+        components.get(root).push(entry);
+      });
+      const visibleKeys = new Set();
+      components.forEach((entries) => {
+        if (entries.length < 2) return;
+        const key = entries.map((entry) => group.entries.indexOf(entry)).sort((a, b) => a - b).join(",");
+        visibleKeys.add(key);
+        let indicator = group.indicators.get(key);
+        if (!indicator) {
+          indicator = document.createElement("div");
+          group.indicators.set(key, indicator);
+          designLayer.appendChild(indicator);
+        }
+        const points = entries.map((entry) => {
+          const rotation = entry.body.angle - entry.body.initialAngle;
+          const cosine = Math.cos(rotation);
+          const sine = Math.sin(rotation);
+          return {
+            x: entry.body.position.x + entry.offset.x * cosine - entry.offset.y * sine,
+            y: entry.body.position.y + entry.offset.x * sine + entry.offset.y * cosine
+          };
+        });
+        indicator.style.left = (points.reduce((sum, point) => sum + point.x, 0) / points.length) + "px";
+        indicator.style.top = (points.reduce((sum, point) => sum + point.y, 0) / points.length) + "px";
+        indicator.className = "joint-stress-indicator " + state +
+          (group.connectionType === "moment" ? " moment" : "");
+        indicator.setAttribute(
+          "aria-label",
+          (group.connectionType === "moment" ? "Moment-frame" : "Pinned") +
+            " joint stress: " + state + " · " + forceKip.toFixed(1) + " kip"
+        );
+      });
+      group.indicators.forEach((indicator, key) => {
+        if (!visibleKeys.has(key)) {
+          indicator.remove();
+          group.indicators.delete(key);
+        }
+      });
     }
 
     function updateJointStressStates(tableAccelerationFt) {
       let failedGroup = null;
       const resultantAcceleration = Math.hypot(gravityAcceleration(), tableAccelerationFt);
       jointGroups.forEach((group) => {
-        if (!group.constraints.length) return;
-        const forceKip = group.matterMass * MATTER_MASS_TO_KIP_S2_PER_FT * resultantAcceleration;
+        const forceKip = group.constraints.length
+          ? group.matterMass * MATTER_MASS_TO_KIP_S2_PER_FT * resultantAcceleration
+          : group.forceKip;
         group.forceKip = forceKip;
         const becameFailed = !group.failed && forceKip > FAILED_JOINT_FORCE_KIP;
         const state = group.failed || becameFailed
           ? "failed"
           : (forceKip >= ELEVATED_JOINT_FORCE_KIP ? "elevated" : "normal");
 
-        if (group.indicator) {
-          const points = group.entries.map((entry) => {
-            const element = entry.body.element;
-            const isStart = Number(element.dataset.startX) === entry.node.x &&
-              Number(element.dataset.startY) === entry.node.y;
-            const isEnd = Number(element.dataset.endX) === entry.node.x &&
-              Number(element.dataset.endY) === entry.node.y;
-            const offset = entry.offset || (isStart
-              ? entry.body.initialStartOffset
-              : isEnd
-                ? entry.body.initialEndOffset
-                : { x: entry.node.x - entry.body.initialPosition.x, y: entry.node.y - entry.body.initialPosition.y });
-            const rotation = entry.body.angle - entry.body.initialAngle;
-            const cosine = Math.cos(rotation);
-            const sine = Math.sin(rotation);
-            return {
-              x: entry.body.position.x + offset.x * cosine - offset.y * sine,
-              y: entry.body.position.y + offset.x * sine + offset.y * cosine
-            };
-          });
-          const liveX = points.reduce((sum, point) => sum + point.x, 0) / points.length;
-          const liveY = points.reduce((sum, point) => sum + point.y, 0) / points.length;
-          group.indicator.style.left = liveX + "px";
-          group.indicator.style.top = liveY + "px";
-          group.indicator.className = "joint-stress-indicator " + state;
-          group.indicator.setAttribute(
-            "aria-label",
-            "Joint stress: " + state + " · " + forceKip.toFixed(1) + " kip"
-          );
-        }
+        updateGroupStressIndicator(group, state, forceKip);
 
         if (becameFailed) {
           group.failed = true;
           group.constraints.forEach((constraint) => {
             window.Matter.Composite.remove(physicsEngine.world, constraint, true);
           });
+          group.memberLinks.forEach((link) => { link.active = false; });
           if (!failedGroup) failedGroup = group;
         }
       });
@@ -2555,6 +2824,7 @@
       document.getElementById("peakAccelValue").textContent = testPeakAcceleration.toFixed(2) + " g";
       const startButton = document.getElementById("startBtn");
       const passed = resultText.startsWith("Test passed");
+      if (passed) recordHighScore(testPeakAcceleration);
       startButton.textContent = passed ? "Test passed" : "Test failed";
       startButton.classList.remove("result-success", "result-failure");
       startButton.classList.add(passed ? "result-success" : "result-failure");
@@ -2588,57 +2858,56 @@
           document.getElementById("elapsedValue").textContent = "0.00 s";
           document.getElementById("peakAccelValue").textContent = "0.00 g";
 
+          let physicsElapsed = 0;
+          let physicsAccumulator = 0;
+          let lastFrameAt = testStartedAt;
+          const physicsStepMs = 1000 / 60;
           physicsAnimation = (now) => {
             if (!isTesting) return;
-            const simulationElapsed = (now - testStartedAt) / 1000;
-            if (simulationElapsed >= 10 && !testFinished) {
-              testElapsed = 10;
-              finishTest("Test passed · Survived 10.00 s");
-            }
-            if (!testFinished) testElapsed = simulationElapsed;
+            physicsAccumulator += Math.max(0, now - lastFrameAt);
+            lastFrameAt = now;
+            while (physicsAccumulator >= physicsStepMs) {
+              physicsAccumulator -= physicsStepMs;
+              physicsElapsed += physicsStepMs / 1000;
 
-            const amplitude = Number(document.getElementById("amplitudeNumber").value);
-            const frequency = Number(document.getElementById("frequencyNumber").value);
-            const omega = 2 * Math.PI * frequency;
-            const displacementPx = amplitude * 20 / 12 * Math.sin(omega * simulationElapsed);
-            const displacementFt = displacementPx / 20;
-            const signedAccelerationFt = omega * omega * displacementFt;
-            const accelerationFt = Math.abs(signedAccelerationFt);
-            if (!testFinished) {
-              testPeakAcceleration = Math.max(testPeakAcceleration, accelerationFt / gravityAcceleration());
-            }
-
-            Matter.Engine.update(physicsEngine, 1000 / 60);
-            const failedJoint = updateJointStressStates(signedAccelerationFt);
-            const groundPlane = getTableBoundary();
-            const collided = physicsBodies.some((body) =>
-              body.element?.dataset.tool === "Floor mass" &&
-              body.bounds.max.y >= groundPlane - 4
-            );
-            if (collided && !testFinished) {
-              if (physicsTableBody) {
-                Matter.Body.setPosition(physicsTableBody, {
-                  x: tableBaseLeft + shakeTable.offsetWidth / 2 + displacementPx,
-                  y: physicsTableBody.position.y
-                });
+              const amplitude = Number(document.getElementById("amplitudeNumber").value);
+              const frequency = Number(document.getElementById("frequencyNumber").value);
+              const omega = 2 * Math.PI * frequency;
+              const displacementPx = amplitude * 20 / 12 * Math.sin(omega * physicsElapsed);
+              const displacementFt = displacementPx / 20;
+              const signedAccelerationFt = omega * omega * displacementFt;
+              const peakAccelerationG = (amplitude / 12) * omega * omega / STANDARD_GRAVITY_FTPS2;
+              if (!testFinished) {
+                testElapsed = physicsElapsed;
+                testPeakAcceleration = Math.max(testPeakAcceleration, peakAccelerationG);
               }
-              shakeTable.style.left = (tableBaseLeft + displacementPx) + "px";
-              syncPhysicsElements();
-              finishTest("Test failed · Floor mass reached ground at " + testElapsed.toFixed(2) + " s");
-            }
-            if (failedJoint && !testFinished) {
-              statusLine.textContent = "Joint at (" + failedJoint.x + ", " + failedJoint.y + ") exceeded 15 kip; collapse continues until a mass reaches the ground";
-            }
 
-            if (physicsTableBody) {
               Matter.Body.setPosition(physicsTableBody, {
                 x: tableBaseLeft + shakeTable.offsetWidth / 2 + displacementPx,
                 y: physicsTableBody.position.y
-              });
-            }
-            shakeTable.style.left = (tableBaseLeft + displacementPx) + "px";
-            syncPhysicsElements();
+              }, true);
+              shakeTable.style.left = (tableBaseLeft + displacementPx) + "px";
 
+              Matter.Engine.update(physicsEngine, physicsStepMs);
+              const failedJoint = updateJointStressStates(signedAccelerationFt);
+              const groundPlane = getTableBoundary();
+              const collided = physicsBodies.some((body) =>
+                body.element?.dataset.tool === "Floor mass" &&
+                body.bounds.max.y >= groundPlane - 4
+              );
+              if (collided && !testFinished) {
+                finishTest("Test failed · Floor mass reached ground at " + testElapsed.toFixed(2) + " s");
+              }
+              if (failedJoint && !testFinished) {
+                statusLine.textContent = "Joint at (" + failedJoint.x + ", " + failedJoint.y + ") exceeded 15 kip; collapse continues until a mass reaches the ground";
+              }
+              if (physicsElapsed >= 10 && !testFinished) {
+                testElapsed = 10;
+                finishTest("Test passed · Survived 10.00 s");
+              }
+            }
+
+            syncPhysicsElements();
             document.getElementById("elapsedValue").textContent = testElapsed.toFixed(2) + " s";
             document.getElementById("peakAccelValue").textContent = testPeakAcceleration.toFixed(2) + " g";
             physicsAnimationId = requestAnimationFrame(physicsAnimation);
@@ -2680,6 +2949,7 @@
         clearJointStressIndicators();
       }
       document.querySelectorAll(".tool").forEach((tool) => { tool.disabled = testing; });
+      document.querySelectorAll(".gravity-btn").forEach((button) => { button.disabled = testing; });
       document.getElementById("starterBtn").disabled = testing;
       document.getElementById("clearBtn").disabled = testing;
       const startButton = document.getElementById("startBtn");
@@ -2688,6 +2958,7 @@
       startButton.disabled = testing;
       statusLine.classList.remove("result-success", "result-failure");
       document.getElementById("stopBtn").disabled = !testing;
+      renderJointEditMarkers();
       document.querySelector(".canvas-label").textContent = testing
         ? "1 ft grid · Test mode"
         : "1 ft grid · Design mode";

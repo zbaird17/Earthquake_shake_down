@@ -914,19 +914,19 @@
 
 - Asked: Make sure the shake table keeps moving after a successful test.
 - Changed: No application change was needed; `finishTest` already starts a continuing sine-wave animation for either result, and Stop Test cancels it. Confirmed both the 10-second success path and the floor-contact failure path call `finishTest`.
-- Worked: Static path checks confirm both results enter the same table animation, which continues while test mode is active and stops when the user clicks Stop Test.
+- Worked: The static path check was insufficient. The user observed that the table stopped shaking at 10 seconds; this was addressed by the follow-up animation changes in Requests 91 and 92.
 
 ### Request 91
 
 - Asked: Make sure the shake table keeps moving after test success; the user observed it stopping at 10 seconds.
 - Changed: Replaced the inline post-result callback with a dedicated result-table animation loop and its own animation-frame ID. Success and failure both start this loop; Stop Test cancels it and restores the table.
-- Worked: Inline JavaScript parses. Static checks confirm the loop reschedules itself, both result paths share `finishTest`, and Stop Test cancels the loop. Browser animation still needs visual confirmation.
+- Worked: The inline JavaScript parsed and the static checks passed, but this did not fix the observed stop at 10 seconds. The user clarified that Matter.js physics itself must continue; that behavior was implemented in Request 92 and extended to failures in Request 93.
 
 ### Request 92
 
 - Asked: Keep physics simulating after the tower earns its 10-second pass; the prior change kept only the table moving.
 - Changed: Updated `spec.md` so successful runs continue full tower physics and table shaking until Stop Test. In `index.html`, the 10-second threshold records success once and continues the normal Matter.js animation loop; elapsed survival display remains at 10.00 seconds. Failed tests still freeze the tower and keep only the table moving until Stop Test.
-- Worked: The inline JavaScript parses. Static checks confirm the success threshold is handled once, engine updates continue after the result, and failure still uses the frozen-tower table loop. Browser interaction was not available for visual confirmation.
+- Worked: The inline JavaScript parses. Static checks confirmed Matter.js continues updating after a successful result. The user then requested the same continuation after failure, implemented in Request 93.
 
 ### Request 93
 
@@ -981,3 +981,155 @@
 - Asked: Align the floor-mass ghost so it fills the grid cells like the placed mass instead of being centered on a grid line.
 - Changed: Updated `spec.md` placement behavior. Changed `showPlacementGhost` to use the same snapped top-left footprint offsets and boundary clamping as `addElement`, and removed structural-anchor snapping for floor-mass previews.
 - Worked: The inline JavaScript parses. A static position check confirms preview and placed-mass coordinates match for a sample 40×20 px mass; the ghost uses half-footprint offsets and no longer anchors to nearby brace nodes. Browser visual verification was not available.
+
+## 2026-11-21
+
+### Request 102
+
+- Asked: Commit the approved project changes, including the floor-mass ghost alignment.
+- Changed: Committed the five current project files as `1db8203` (`Align mass placement preview to grid cells`).
+- Worked: Yes. The commit succeeded and the worktree was clean.
+
+### Request 103
+
+- Asked: Update `prompts.md` to reflect all requests and results in the established format.
+- Changed: Audited the numbered history through Request 101, corrected the outcomes for the unsuccessful post-pass animation attempts, and added the missing commit request and this log-maintenance request.
+- Worked: Yes. The log now records the conversation through this request in chronological order.
+
+### Request 104
+
+- Asked: Build Stage 6 from the project spec.
+- Changed: Clarified Stage 6 readout, peak sine-acceleration calculation, successful-only persistent High Score, and Clear Structure behavior in `spec.md`. In `index.html`, replaced the placeholder High Score with a local-storage-backed score updated only by a higher successful-run peak; calculates peak acceleration from amplitude and frequency; resets cost/time/peak/result when clearing while preserving High Score; and adds touch-action support to controls.
+- Worked: The inline JavaScript parses. A localStorage simulation confirmed loading a prior score, replacing it only with a higher score, ignoring lower values, and retaining it across reload. Static checks confirm failed runs do not record, Clear resets transient readouts without deleting High Score, the peak formula, and touch affordances. Browser desktop/mobile interaction was not verified.
+
+### Request 105
+
+- Asked: Set the amplitude and frequency defaults to 4 and 3.
+- Changed: Updated `spec.md` and the controls in `index.html` to default to 4 inches and 3 Hz. Updated the default shake-table validation case and its expected acceleration in `02_validation/calibration_test_cases.md`.
+- Worked: Static checks confirm both sliders and number boxes initialize to 4 inches and 3 Hz, and the spec and default validation case agree. Browser interaction was not verified.
+
+### Request 106
+
+- Asked: Show a separate High Score for each gravity mode.
+- Changed: Updated `spec.md` to define independent Earth, Mars, and Moon scores. Added three labeled readouts in `index.html` and separate local-storage keys; successful runs now update only the selected mode's score. Failed runs leave all scores unchanged.
+- Worked: Static checks confirm each mode loads and saves independently and the selected mode alone is updated on success. `git diff --check` passes. Browser interaction was not verified.
+
+### Request 107
+
+- Asked: Consider more realistic unit costs for structural members and floor masses.
+- Changed: Compared the app's current rates with retail dimensional-lumber examples and ready-mix concrete pricing. Recommended illustrative material-only rates of about $1.50–$2/ft for columns, $1.25–$1.75/ft for beams, $0.50–$0.75/ft for braces, and about $7/ft² for floor masses treated as a one-foot-deep concrete volume. No app or spec rates were changed pending selection of a material/cost basis.
+- Worked: Recommendation is grounded in current retail examples but remains an approximation; local prices, labor, connections, and the floor-mass depth assumption can materially change it.
+
+### Request 108
+
+- Asked: Clarified that the structural elements and masses should be priced as steel.
+- Changed: Rebased the recommendation on fabricated structural steel at $51.20/CWT and typical AISC section weights: about $10/ft for HSS6×6×1/4 columns, $8/ft for W6×15 beams, $4.50/ft for HSS3×3×1/4 braces, and $10/ft² for a 1/2-inch steel-plate floor mass. No app/spec rates changed pending approval of these size and mass-thickness assumptions.
+- Worked: The estimate uses current published steel pricing and AISC-shape weights; actual local quotes, fabrication scope, and selected plate thickness can change costs.
+
+### Request 109
+
+- Asked: Check whether the steel-based estimate implies the whole starter tower costs only a few hundred dollars.
+- Changed: Corrected the prior estimate: it used a low steel price basis and understated fabrication/installation. Re-estimated with FDOT's FY2025 structural-steel project-cost forecast of $4.71/lb, yielding rounded illustrative rates near $90/ft for HSS6×6×1/4 columns, $71/ft for W6×15 beams, $42/ft for HSS3×3×1/4 braces, and $96/ft² for 1/2-inch steel plate. The specified starter tower totals roughly $8,000 under those assumptions. No app/spec values changed.
+- Worked: Estimate was recalculated from starter-tower quantities and published section weights; local bid prices, connections, coating, and the exact mass representation remain variables.
+
+### Request 110
+
+- Asked: Round the steel-based rates to the nearest 10 and update the values.
+- Changed: Set columns to $90/ft, beams to $70/ft, braces to $40/ft, and floor masses to $100/ft². Updated the visible tool prices and live cost formulas in `index.html`, and aligned `spec.md` with those rates and the floor-mass area unit.
+- Worked: Static inspection confirms the displayed and calculated rates match the spec. `git diff --check` passes.
+
+### Request 111
+
+- Asked: Remove the floor-mass cost because masses are what the structure supports, not structural members.
+- Changed: Updated `spec.md` to specify that floor masses add no construction cost. Removed the Mass price label and floor-mass contribution from `updateTotalCost` in `index.html`.
+- Worked: Static inspection confirms no Mass price label or mass-cost calculation remains, while columns, beams, and braces retain their rates. `git diff --check` passes.
+
+### Request 112
+
+- Asked: Review the full spec against the current build and identify omissions or improvements.
+- Changed: Compared `spec.md`, `index.html`, and the validation documents. No product code/spec changes were made during this audit. Recorded the concrete findings for follow-up: default brace geometry wording is inaccurate; clear-to-blank behavior conflicts with the statement that clearing preserves the starter tower; gravity-control placement wording is stale; test inputs/gravity remain changeable during a run; and the 10-second pass check precedes that frame's physics/collision update. Also noted that steel cost rates need their representative section assumptions documented after removing mass cost.
+- Worked: Static source review completed; no runtime acceptance tests were run. Findings are summarized to the user for prioritization.
+
+### Request 113
+
+- Asked: Clarify starter-tower and Clear Structure behavior, move readouts beneath the canvas while keeping gravity in the sidebar, lock gravity during tests but leave shaking controls editable, and clarify how gravity affects masses.
+- Changed: Updated `spec.md` with the actual two diagonal starter brace endpoints, fresh-load/clear/load-starter behavior, sidebar/readout placement, test-time control rules, gravity-versus-mass behavior, and representative steel section assumptions. In `index.html`, moved the readout panel below the canvas, kept gravity and simulation controls in the sidebar, and disabled gravity buttons during tests with a visible disabled state; amplitude/frequency controls remain active.
+- Worked: Static source inspection confirms the readouts are under the canvas, gravity buttons are disabled for the full test, shaking inputs remain enabled, and the specification agrees on mass versus gravitational weight. `git diff --check` passes; browser layout was not visually verified.
+
+### Request 114
+
+- Asked: Add an option to change nodes to moment-frame connections.
+- Changed: Updated `spec.md` to define pinned-by-default joints, per-node toggling, and moment-frame rotation restraint. Added an Edit Joints mode to `index.html` with visible P/M node markers; moment nodes receive additional rigid-body constraints at connected members and column bases. All joint constraints remain grouped for the existing force-based failure behavior. Corrected endpoint constraint local coordinates so rotated braces attach at their actual nodes.
+- Worked: Static inspection confirms mode markers map to snapped structural nodes, moment constraints are added only for selected nodes, connection modes reset when clearing/loading the starter tower, and joint editing is disabled during tests. `git diff --check` passes; runtime physics and browser visuals were not tested.
+
+### Request 115
+
+- Asked: Keep the app always in editing mode so pinned/moment connections can be switched directly, without a separate button or mode, and add a cost for each moment connection.
+- Changed: Updated `spec.md` before the app to specify always-visible P/M joint badges, direct toggling, and a $600 premium per moment-frame node. Removed the separate Edit Joints mode/button from `index.html`; P/M badges now appear while designing and hide during tests. Clicking a badge switches the node connection type and updates total cost. Added a readout legend for the badges and the premium. The $600 premium is based on the approximate moment-versus-gravity installation-cost difference in AISC's published framing estimate.
+- Worked: Static inspection confirms no separate joint-edit mode/button references remain, moment premiums are charged once per connected moment node, and the spec documents the behavior. `git diff --check` passes; browser behavior and physics were not run.
+
+### Request 116
+
+- Asked: Keep joint stress nodes aligned with the member ends during the test.
+- Changed: Replaced each joint's single averaged stress marker with markers that follow each attached member endpoint using its live physics-body position and rotation. This prevents a marker from floating between members after their shared constraints separate or break.
+- Worked: Static inspection confirms each marker uses the corresponding member endpoint transform and receives the joint's current stress state. `git diff --check` passes; browser physics behavior was not run.
+
+### Request 117
+
+- Asked: Keep one joint node with the members that remain connected after a separation, place it exactly where at least two member ends meet, and remove it when none remain connected.
+- Changed: Updated `spec.md` with test-time connected-group indicator behavior. Replaced per-member-end markers in `index.html` with one marker per connected component of live member-to-member joint constraints; each marker follows the shared live endpoints and disappears when that component has fewer than two member ends.
+- Worked: Static inspection confirms markers are grouped from active member links, positioned from the endpoints in each connected component, and removed when those links no longer connect two or more member ends. `git diff --check` passes; browser physics behavior was not run.
+
+### Request 118
+
+- Asked: Investigate why the structure appears unable to handle the current shaking level, despite handling it before.
+- Changed: Inspected the running view and the physics update path. The visible run is in Moon gravity at 3 in and 2 Hz (7.41 g relative to lunar gravity), and it shows a pass at 10 seconds. The connected-node rendering changes do not alter the force calculation or member constraints; simulation continues after the 10-second pass and can keep deforming the tower. No physics tuning was made because the observed behavior matches the requested 10-second scoring and continued-motion behavior.
+- Worked: Observed the current app view and statically reviewed the force and failure paths. Did not start or reset a test. This does not establish whether the latest source behaves identically in a fresh run.
+
+### Request 119
+
+- Asked: Use g as a uniform acceleration unit instead of scaling it by local gravity.
+- Changed: Updated `spec.md` and `02_validation/calibration_test_cases.md` so peak shaking acceleration and high scores use standard g = 32.2 ft/s² in every gravity mode. Changed the app calculation to divide the sine-wave peak acceleration by standard gravity while leaving local gravity in the physics and joint demand calculations. Kept separate per-mode high scores and added one-time migration of saved Mars/Moon scores from the former local-g scale into standard g.
+- Worked: Static inspection confirms the peak readout uses the standard-gravity constant and gravity mode remains in the body acceleration and joint-force paths. The default 4 in, 3 Hz input is 118.44 ft/s², or 3.68 standard g in all modes. `git diff --check` passes; browser calculations were not run.
+
+### Request 120
+
+- Asked: Fix the structure flying apart under shaking that looks barely perceptible.
+- Changed: Updated the shake-table motion spec and now move the kinematic table body to the current sine-wave position with inferred velocity before each Matter.js physics step. Removed the duplicate post-step table teleports. This lets constraints see the table's smooth motion each step.
+- Worked: Static inspection confirms a single pre-step table update uses `Body.setPosition(..., true)` and the table element follows the same displacement. At the default 4 in, 3 Hz setting, visible displacement is about 6.7 px on the canvas while peak acceleration is about 3.68 standard g. `git diff --check` passes; the physics was not run in a browser.
+
+### Request 121
+
+- Asked: Fix the tower moving violently even though the shake-table displacement appears small.
+- Changed: Updated `spec.md` to require fixed 1/60-second Matter.js simulation steps independent of browser frame rate. Reworked the animation loop in `index.html` to accumulate real elapsed time, execute zero or more fixed physics substeps, compute the sine-table position for each substep, and move the kinematic table before the solver update. Collision and 10-second success checks now run after each physics substep.
+- Worked: Static inspection confirms the engine advances only in fixed 1/60-second steps and table positions are applied before each step; collision is checked before a 10-second pass is recorded. `git diff --check` passes; browser physics was not run.
+
+### Request 122
+
+- Asked: Stop the top floor from shaking when the shake table is stationary; remove the unexplained energy source.
+- Changed: Updated the spec to prohibit collision forces between connected structural members and between supported masses and their supporting members, and to require support anchors on the mass panel's actual lower corners. In `index.html`, assigned collision categories so structural joints are governed by their constraints, filtered supported masses away from structural-member collisions, and moved their beam constraints from points outside the mass panel to points directly under its lower corners, clamped inside the beam span.
+- Worked: Static inspection confirms supported mass anchors lie within both bodies and structural members no longer collide with each other. `git diff --check` passes; zero-amplitude physics was not run in a browser.
+
+### Request 123
+
+- Asked: Fix spontaneous collapse with zero table shaking.
+- Changed: Reproduced a collapse at zero amplitude in 0.05 seconds. Found that the bottom beam and brace bases overlap the table's collision body while their base joints are also constrained to it. Updated `spec.md` to make base constraints the support mechanism and filter structural members from colliding with the table body in `index.html`.
+- Worked: The zero-amplitude collapse was reproduced in a separate Chrome tab. Static inspection confirms structural bodies no longer accept table collisions while table anchor constraints remain active. `git diff --check` passes; the post-fix simulation was not run.
+
+### Request 124
+
+- Asked: Revisit the earlier version where the physics had looked good and replicate that behavior to fix the ongoing spontaneous collapse.
+- Changed: Reviewed the Stage 4/brace physics history and tried replacing pairwise joint constraints with a star topology. The user reported that this made the physics much worse; that change has been undone in Request 125.
+- Worked: The first attempted fix was rejected by observed behavior and was reverted.
+
+### Request 125
+
+- Asked: Undo the worse joint-constraint change and try another fix based on the earlier physics behavior.
+- Changed: Restored pairwise joint constraints. Compared the earlier browser-verified Stage 4 model, which did not simulate diagonal braces as independent rigid bodies. Updated `spec.md` and `index.html` so braces are instead fixed-length constraints between the member bodies at their actual attached nodes, while the existing live brace rendering, failure handling, gravity, masses, and test controls remain.
+- Worked: `git diff --check` passes. The brace model now avoids the extra rigid-body degree of freedom while preserving its axial connection, but this attempt has not been run in the browser, so the collapse fix is not confirmed.
+
+### Request 126
+
+- Asked: Commit the approved changes.
+- Changed: Prepared the pending app, specification, validation, and prompt-log updates for a single commit.
+- Worked: `git diff --check` passes. Commit `86663ec` contains the four updated project files.
