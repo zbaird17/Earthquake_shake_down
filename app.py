@@ -4,8 +4,10 @@ from copy import deepcopy
 import json
 import os
 from pathlib import Path
+import time
 import tkinter as tk
 from tkinter import messagebox, ttk
+from tkinter import filedialog
 
 import matplotlib
 import pymunk
@@ -44,14 +46,17 @@ class EarthquakeApp:
         self.selected_member_id: str | None = None
         self.selected_member_endpoint: str | None = None
         self.drag_offset: tuple[float, float] | None = None
+        self._joint_badges: dict[tuple[float, float], tuple[float, float]] = {}
         self.saved_design: DesignState | None = None
         self.amplitude = 4.0
         self.frequency = 3.0
+        self.duration_seconds: float | None = 10.0
         self.gravity_name = "Earth"
         self.result_text = "Ready"
         self.elapsed = 0.0
         self.peak_g = peak_acceleration_g(self.amplitude, self.frequency)
         self.scores = {"Earth": 0.0, "Mars": 0.0, "Moon": 0.0}
+        self.last_animation_time = time.perf_counter()
 
         self._build_ui()
         self._load_scores()
@@ -67,19 +72,25 @@ class EarthquakeApp:
         left = ttk.Frame(main)
         left.pack(side="left", fill="y", padx=(0, 8))
         ttk.Label(left, text="Tools", font=("TkDefaultFont", 10, "bold")).pack(pady=(0, 6))
+        self.tool_buttons = {}
         for label, tool in (
             ("Column", "column"),
             ("Beam", "beam"),
             ("Brace", "brace"),
             ("Floor Mass", "mass"),
         ):
-            ttk.Button(left, text=label, width=12, command=lambda t=tool: self._select_tool(t)).pack(pady=2)
+            button = tk.Button(left, text=label, width=12, relief="raised", borderwidth=2,
+                               command=lambda t=tool: self._select_tool(t))
+            button.pack(pady=2)
+            self.tool_buttons[tool] = button
+        self._update_tool_button_states()
 
         canvas_frame = ttk.Frame(main)
         canvas_frame.pack(side="left", fill="both")
         self.figure = Figure(figsize=(6, 5), dpi=100)
         self.figure.patch.set_facecolor("#eef4f8")
         self.ax = self.figure.add_subplot(111)
+        self.ax.set_position([0.0, 0.0, 1.0, 1.0])
         self.ax.set_xlim(0, CANVAS_WIDTH)
         self.ax.set_ylim(CANVAS_HEIGHT, 0)
         self.ax.set_aspect("equal")
@@ -95,6 +106,8 @@ class EarthquakeApp:
 
         self.amplitude_var = tk.DoubleVar(value=self.amplitude)
         self.frequency_var = tk.DoubleVar(value=self.frequency)
+        self.amplitude_var.trace_add("write", lambda *_args: self._set_amplitude(None))
+        self.frequency_var.trace_add("write", lambda *_args: self._set_frequency(None))
         self._slider_section(sidebar, "Amplitude (in)", self.amplitude_var, 0, 12, 0.1, self._set_amplitude)
         self._slider_section(sidebar, "Frequency (Hz)", self.frequency_var, 0.1, 10, 0.1, self._set_frequency)
 
@@ -118,8 +131,22 @@ class EarthquakeApp:
         ttk.Separator(sidebar).pack(fill="x", pady=10)
         self.start_button = ttk.Button(sidebar, text="Start Test", command=self._toggle_test)
         self.start_button.pack(fill="x", pady=2)
+        ttk.Label(sidebar, text="Duration").pack(pady=(6, 2))
+        self.duration_var = tk.StringVar(value="10")
+        duration_values = [str(value) for value in range(1, 21)] + ["Indefinite"]
+        self.duration_box = ttk.Combobox(
+            sidebar,
+            textvariable=self.duration_var,
+            values=duration_values,
+            state="readonly",
+            width=12,
+        )
+        self.duration_box.pack(fill="x")
+        self.duration_box.bind("<<ComboboxSelected>>", self._set_duration)
         ttk.Button(sidebar, text="Clear Structure", command=self._clear_structure).pack(fill="x", pady=2)
         ttk.Button(sidebar, text="Load Starter Tower", command=self._load_starter).pack(fill="x", pady=2)
+        ttk.Button(sidebar, text="Save Design", command=self._save_design).pack(fill="x", pady=2)
+        ttk.Button(sidebar, text="Import Design", command=self._import_design).pack(fill="x", pady=2)
 
         ttk.Separator(sidebar).pack(fill="x", pady=10)
         self.cost_label = ttk.Label(sidebar, text="Total Cost: $0")
@@ -143,7 +170,7 @@ class EarthquakeApp:
         scale = ttk.Scale(frame, from_=minimum, to=maximum, variable=variable, command=lambda _=None: callback(None))
         scale.pack(fill="x", padx=6)
         spin = ttk.Spinbox(frame, from_=minimum, to=maximum, increment=resolution, textvariable=variable,
-                           command=lambda: callback(None), width=10)
+                           format="%.1f", command=lambda: callback(None), width=10)
         spin.pack(pady=4)
         if title.startswith("Amplitude"):
             scale.configure(command=lambda value: self._set_amplitude(float(value)))
@@ -168,20 +195,40 @@ class EarthquakeApp:
         self.active_tool = tool
         self.pending_point = None
         self.selected_member_id = None
+        self._update_tool_button_states()
         self._draw()
 
     def _cancel_tool(self) -> None:
         self.active_tool = None
         self.pending_point = None
         self.selected_member_endpoint = None
+        self._update_tool_button_states()
         self._draw()
+
+    def _update_tool_button_states(self) -> None:
+        for tool, button in self.tool_buttons.items():
+            selected = tool == self.active_tool
+            button.configure(
+                state="disabled" if self.testing else "normal",
+                relief="sunken" if selected else "raised",
+                bg="#dcecff" if selected else "#e7e7e7",
+                fg="#1f4f78" if selected else "#333333",
+                borderwidth=3 if selected else 2,
+            )
 
     def _canvas_position(self, event) -> tuple[float, float]:
         width = self.canvas.get_tk_widget().winfo_width()
         height = self.canvas.get_tk_widget().winfo_height()
-        x = event.x * CANVAS_WIDTH / max(width, 1)
-        y = event.y * CANVAS_HEIGHT / max(height, 1)
-        return round(x / PIXELS_PER_FOOT) * PIXELS_PER_FOOT, round(y / PIXELS_PER_FOOT) * PIXELS_PER_FOOT
+        display_x = min(max(event.x, 0), width)
+        display_y = min(max(event.y, 0), height)
+        x = display_x * CANVAS_WIDTH / max(width, 1)
+        y = display_y * CANVAS_HEIGHT / max(height, 1)
+        snapped_x = round(x / PIXELS_PER_FOOT) * PIXELS_PER_FOOT
+        snapped_y = round(y / PIXELS_PER_FOOT) * PIXELS_PER_FOOT
+        return (
+            max(0.0, min(float(CANVAS_WIDTH), float(snapped_x))),
+            max(0.0, min(float(TABLE_TOP_Y), float(snapped_y))),
+        )
 
     def _on_motion(self, event) -> None:
         self.pointer = self._canvas_position(event)
@@ -196,29 +243,46 @@ class EarthquakeApp:
 
         if self.active_tool:
             if self.active_tool == "mass":
-                self.design.add_mass(x, y, 220, 20)
-                self._cancel_tool()
-                self._refresh_readouts()
-            else:
+                x, y = self._canvas_position(event)
+                nx = max(0.0, min(float(CANVAS_WIDTH), float(round(x / PIXELS_PER_FOOT) * PIXELS_PER_FOOT)))
+                ny = max(0.0, min(float(TABLE_TOP_Y), float(round(y / PIXELS_PER_FOOT) * PIXELS_PER_FOOT)))
                 if self.pending_point is None:
-                    self.pending_point = (x, y)
+                    self.pending_point = (nx, ny)
+                else:
+                    start_x, start_y = self.pending_point
+                    left, right = sorted((start_x, nx))
+                    top, bottom = sorted((start_y, ny))
+                    width = round((right - left) / PIXELS_PER_FOOT) * PIXELS_PER_FOOT
+                    height = round((bottom - top) / PIXELS_PER_FOOT) * PIXELS_PER_FOOT
+                    if width >= PIXELS_PER_FOOT and height >= PIXELS_PER_FOOT:
+                        self.design.add_mass(left, top, width, height)
+                        self._cancel_tool()
+                        self._refresh_readouts()
+                    else:
+                        self.pending_point = None
+                        self._draw()
+            else:
+                anchor_x, anchor_y = self.design.snap_structural_node(x, y)
+                if self.pending_point is None:
+                    self.pending_point = (anchor_x, anchor_y)
                 else:
                     x1, y1 = self.pending_point
                     if self.active_tool == "beam":
-                        member = self.design.add_member("beam", x1, y1, x, y)
+                        end_x, _ = self.design.snap_structural_node(anchor_x, y1)
+                        member = self.design.add_member("beam", x1, y1, end_x, y1)
                     elif self.active_tool == "column":
-                        member = self.design.add_member("column", x1, y1, x, y)
+                        member = self.design.add_member("column", x1, y1, x1, anchor_y)
                     else:
-                        member = self.design.add_member("brace", x1, y1, x, y)
+                        member = self.design.add_member("brace", x1, y1, anchor_x, anchor_y)
                     self.pending_point = None
                     self.active_tool = None
                     self._refresh_readouts()
             self._draw()
             return
 
-        for nx, ny in self.design.connected_nodes():
-            if ((nx + 6 - x) ** 2 + (ny - 8 - y) ** 2) ** 0.5 <= 12:
-                self.design.toggle_joint(nx, ny)
+        for node, badge_center in self._joint_badges.items():
+            if ((badge_center[0] - x) ** 2 + (badge_center[1] - y) ** 2) ** 0.5 <= 12:
+                self.design.toggle_joint(node[0], node[1])
                 self.selected_member_endpoint = None
                 self._refresh_readouts()
                 self._draw()
@@ -242,6 +306,16 @@ class EarthquakeApp:
                 self._draw()
                 return
         for mass in self.design.masses:
+            for endpoint_name, px, py in (
+                ("start", mass.x, mass.y),
+                ("end", mass.x + mass.width, mass.y + mass.height),
+            ):
+                if ((px - x) ** 2 + (py - y) ** 2) ** 0.5 <= 10:
+                    self.selected_member_id = f"mass:{mass.mass_id}"
+                    self.selected_member_endpoint = endpoint_name
+                    self.drag_offset = None
+                    self._draw()
+                    return
             if mass.x <= x <= mass.x + mass.width and mass.y <= y <= mass.y + mass.height:
                 self.selected_member_id = f"mass:{mass.mass_id}"
                 self.selected_member_endpoint = None
@@ -259,6 +333,12 @@ class EarthquakeApp:
             mass_id = self.selected_member_id.split(":", 1)[1]
             mass = next((m for m in self.design.masses if m.mass_id == mass_id), None)
             if mass:
+                if self.selected_member_endpoint:
+                    self.design.resize_mass(mass.mass_id, self.selected_member_endpoint, x, y)
+                    self._draw()
+                    return
+                if not self.drag_offset:
+                    return
                 dx = x - (mass.x + self.drag_offset[0])
                 dy = y - (mass.y + self.drag_offset[1])
                 nx = round((mass.x + dx) / PIXELS_PER_FOOT) * PIXELS_PER_FOOT
@@ -269,42 +349,19 @@ class EarthquakeApp:
             member = next((m for m in self.design.members if m.member_id == self.selected_member_id), None)
             if member:
                 if self.selected_member_endpoint:
-                    old_x1, old_y1 = member.x1, member.y1
-                    old_x2, old_y2 = member.x2, member.y2
-                    nx, ny = x, y
-                    if member.kind == "beam":
-                        if self.selected_member_endpoint == "start":
-                            ny = member.y1
-                        else:
-                            ny = member.y2
-                    elif member.kind == "column":
-                        nx = member.x1 if self.selected_member_endpoint == "start" else member.x2
-                    nx = round(nx / PIXELS_PER_FOOT) * PIXELS_PER_FOOT
-                    ny = round(ny / PIXELS_PER_FOOT) * PIXELS_PER_FOOT
-                    if not 0 <= nx <= CANVAS_WIDTH or not 0 <= ny <= TABLE_TOP_Y:
-                        self._draw()
-                        return
-                    if self.selected_member_endpoint == "start":
-                        member.x1, member.y1 = nx, ny
-                    else:
-                        member.x2, member.y2 = nx, ny
-                    if ((member.x2 - member.x1) ** 2 + (member.y2 - member.y1) ** 2) ** 0.5 < PIXELS_PER_FOOT:
-                        member.x1, member.y1 = old_x1, old_y1
-                        member.x2, member.y2 = old_x2, old_y2
-                        self._draw()
-                        return
+                    self.design.resize_member_endpoint(
+                        member.member_id,
+                        self.selected_member_endpoint,
+                        x,
+                        y,
+                    )
                     self._draw()
                     return
                 if not self.drag_offset:
                     return
                 dx = x - (member.x1 + self.drag_offset[0])
                 dy = y - (member.y1 + self.drag_offset[1])
-                nx1 = round((member.x1 + dx) / PIXELS_PER_FOOT) * PIXELS_PER_FOOT
-                ny1 = round((member.y1 + dy) / PIXELS_PER_FOOT) * PIXELS_PER_FOOT
-                nx2 = nx1 + (member.x2 - member.x1)
-                ny2 = ny1 + (member.y2 - member.y1)
-                if 0 <= nx1 <= CANVAS_WIDTH and 0 <= nx2 <= CANVAS_WIDTH and 0 <= ny1 <= TABLE_TOP_Y and 0 <= ny2 <= TABLE_TOP_Y:
-                    member.x1, member.y1, member.x2, member.y2 = nx1, ny1, nx2, ny2
+                self.design.move_member(member.member_id, member.x1 + dx, member.y1 + dy)
         self._draw()
 
     def _on_release(self, _event) -> None:
@@ -335,22 +392,36 @@ class EarthquakeApp:
     def _set_amplitude(self, value) -> None:
         if value is None:
             value = self.amplitude_var.get()
-        value = max(0.0, min(12.0, float(value)))
+        value = round(max(0.0, min(12.0, float(value))) * 10.0) / 10.0
         self.amplitude = value
-        self.amplitude_var.set(value)
-        if not self.testing:
+        if abs(self.amplitude_var.get() - value) > 1e-9:
+            self.amplitude_var.set(value)
+        if self.testing and self.test is not None:
+            self.test.amplitude = value
+            self.peak_g = peak_acceleration_g(value, self.frequency)
+        else:
             self.peak_g = peak_acceleration_g(value, self.frequency)
         self._refresh_readouts()
 
     def _set_frequency(self, value) -> None:
         if value is None:
             value = self.frequency_var.get()
-        value = max(0.1, min(10.0, float(value)))
+        value = round(max(0.1, min(10.0, float(value))) * 10.0) / 10.0
         self.frequency = value
-        self.frequency_var.set(value)
-        if not self.testing:
+        if abs(self.frequency_var.get() - value) > 1e-9:
+            self.frequency_var.set(value)
+        if self.testing and self.test is not None:
+            self.test.frequency = value
+            self.peak_g = peak_acceleration_g(self.amplitude, value)
+        else:
             self.peak_g = peak_acceleration_g(self.amplitude, value)
         self._refresh_readouts()
+
+    def _set_duration(self, _event=None) -> None:
+        if self.testing:
+            return
+        selected = self.duration_var.get()
+        self.duration_seconds = None if selected == "Indefinite" else float(selected)
 
     def _set_gravity(self, name: str) -> None:
         if self.testing:
@@ -410,6 +481,92 @@ class EarthquakeApp:
         self._refresh_readouts()
         self._draw()
 
+    def _save_design(self) -> None:
+        if self.testing:
+            return
+        path = filedialog.asksaveasfilename(
+            title="Save Design",
+            defaultextension=".json",
+            filetypes=[("Earthquake design", "*.json"), ("JSON files", "*.json")],
+            initialfile="earthquake-design.json",
+        )
+        if not path:
+            return
+        payload = self.design.to_dict()
+        payload.update({
+            "gravity": self.gravity_name,
+            "amplitude": round(self.amplitude, 1),
+            "frequency": round(self.frequency, 1),
+            "duration_seconds": self.duration_seconds,
+        })
+        try:
+            Path(path).write_text(json.dumps(payload, indent=2), encoding="utf-8")
+            messagebox.showinfo("Design Saved", f"Design saved to:\n{path}")
+        except OSError as error:
+            messagebox.showerror("Save Error", f"Could not save the design:\n{error}")
+
+    def _import_design(self) -> None:
+        if self.testing:
+            return
+        path = filedialog.askopenfilename(
+            title="Import Design",
+            filetypes=[("Earthquake design", "*.json"), ("JSON files", "*.json")],
+        )
+        if not path:
+            return
+        try:
+            payload = json.loads(Path(path).read_text(encoding="utf-8"))
+            imported = DesignState.from_dict(payload)
+        except (json.JSONDecodeError, OSError, ValueError) as error:
+            messagebox.showerror("Import Error", f"Could not import the design:\n{error}")
+            return
+
+        gravity = payload.get("gravity", "Earth")
+        if gravity not in ("Earth", "Mars", "Moon"):
+            messagebox.showerror("Import Error", "The saved gravity mode is invalid.")
+            return
+        try:
+            amplitude = round(max(0.0, min(12.0, float(payload.get("amplitude", 4.0)))) * 10.0) / 10.0
+            frequency = round(max(0.1, min(10.0, float(payload.get("frequency", 3.0)))) * 10.0) / 10.0
+        except (TypeError, ValueError):
+            messagebox.showerror("Import Error", "The saved amplitude or frequency is invalid.")
+            return
+        duration_value = payload.get("duration_seconds", 10.0)
+        if duration_value is None:
+            duration_seconds = None
+        else:
+            try:
+                duration_seconds = float(duration_value)
+            except (TypeError, ValueError):
+                messagebox.showerror("Import Error", "The saved shaking duration is invalid.")
+                return
+            if not 1.0 <= duration_seconds <= 20.0 or not duration_seconds.is_integer():
+                messagebox.showerror("Import Error", "The saved shaking duration must be a whole number from 1 to 20.")
+                return
+            duration_seconds = float(int(duration_seconds))
+
+        self.design = imported
+        self.gravity_name = gravity
+        self.amplitude = amplitude
+        self.frequency = frequency
+        self.duration_seconds = duration_seconds
+        self.duration_var.set("Indefinite" if duration_seconds is None else str(int(duration_seconds)))
+        self.amplitude_var.set(amplitude)
+        self.frequency_var.set(frequency)
+        self.active_tool = None
+        self.pending_point = None
+        self.selected_member_id = None
+        self.selected_member_endpoint = None
+        self.result_text = "Ready"
+        self.elapsed = 0.0
+        self.peak_g = peak_acceleration_g(amplitude, frequency)
+        self.scores = {name: 0.0 for name in ("Earth", "Mars", "Moon")}
+        self._save_scores()
+        self._update_gravity_button_states()
+        self._update_tool_button_states()
+        self._refresh_readouts()
+        self._draw()
+
     def _toggle_test(self) -> None:
         if self.testing:
             self._stop_test()
@@ -418,17 +575,44 @@ class EarthquakeApp:
 
     def _start_test(self) -> None:
         self.saved_design = deepcopy(self.design)
-        self.test = TestSimulation(deepcopy(self.design), self.gravity_name, self.amplitude, self.frequency)
+        self.test = TestSimulation(
+            deepcopy(self.design),
+            self.gravity_name,
+            self.amplitude,
+            self.frequency,
+            self.duration_seconds,
+        )
         self.testing = True
+        self.last_animation_time = time.perf_counter()
         self.active_tool = None
         self.pending_point = None
+        self._update_tool_button_states()
         self.elapsed = 0.0
         self.peak_g = peak_acceleration_g(self.amplitude, self.frequency)
         self.result_text = "Testing"
         self.start_button.configure(text="Stop Test")
+        self.duration_box.configure(state="disabled")
         self._update_gravity_button_states()
         for member in self.design.members:
             pass
+        self._refresh_readouts()
+        self._draw()
+
+    def _finish_duration_test(self) -> None:
+        if not self.testing:
+            return
+        final_result = "Pass" if self.test and self.test.result == "success" else "Failure"
+        if self.saved_design is not None:
+            self.design = self.saved_design
+        self.saved_design = None
+        self.test = None
+        self.testing = False
+        self.last_animation_time = time.perf_counter()
+        self.start_button.configure(text="Start Test")
+        self.duration_box.configure(state="readonly")
+        self._update_gravity_button_states()
+        self._update_tool_button_states()
+        self.result_text = final_result
         self._refresh_readouts()
         self._draw()
 
@@ -438,15 +622,21 @@ class EarthquakeApp:
         self.saved_design = None
         self.test = None
         self.testing = False
+        self.last_animation_time = time.perf_counter()
         self.start_button.configure(text="Start Test")
+        self.duration_box.configure(state="readonly")
         self._update_gravity_button_states()
+        self._update_tool_button_states()
         self.result_text = "Stopped"
         self._refresh_readouts()
         self._draw()
 
     def _animation_tick(self) -> None:
+        now = time.perf_counter()
+        real_delta = max(0.0, now - self.last_animation_time)
+        self.last_animation_time = now
         if self.testing and self.test:
-            self.test.step(1.0 / 60.0)
+            self.test.step(min(real_delta, 0.25))
             if self.test.result is None:
                 self.elapsed = self.test.elapsed
             else:
@@ -458,6 +648,8 @@ class EarthquakeApp:
                         if score > self.scores[self.gravity_name]:
                             self.scores[self.gravity_name] = score
                             self._save_scores()
+                if self.test.duration_seconds is not None:
+                    self._finish_duration_test()
             self._refresh_readouts()
             self._draw()
         self.root.after(16, self._animation_tick)
@@ -528,10 +720,21 @@ class EarthquakeApp:
         self.canvas.draw_idle()
 
     def _draw_design(self) -> None:
+        self._joint_badges.clear()
         for member in self.design.members:
             color = {"beam": "#3a76a8", "column": "#4e5f6b", "brace": "#b56a28"}[member.kind]
+            is_selected = member.member_id == self.selected_member_id
+            if is_selected:
+                color = "#ff9f1c"
             width = 12 if member.kind != "brace" else 7
             self.ax.plot([member.x1, member.x2], [member.y1, member.y2], color=color, linewidth=width, solid_capstyle="round", zorder=3)
+            mx = (member.x1 + member.x2) / 2
+            my = (member.y1 + member.y2) / 2
+            length_text = f"{member.length_ft:.1f} ft"
+            self.ax.text(mx, my - 14 if member.kind == "beam" else my,
+                         length_text, ha="center", va="center", fontsize=8,
+                         color="#17233b", rotation=0, zorder=6,
+                         bbox={"boxstyle": "round,pad=0.2", "facecolor": "white", "edgecolor": "#d7e1ed"})
             for px, py in ((member.x1, member.y1), (member.x2, member.y2)):
                 selected = (
                     member.member_id == self.selected_member_id
@@ -544,12 +747,29 @@ class EarthquakeApp:
                                             facecolor="#ffffff" if selected else "#2d2d2d",
                                             edgecolor="#ffffff", linewidth=1.5, zorder=7))
         for mass in self.design.masses:
+            is_selected = self.selected_member_id == f"mass:{mass.mass_id}"
             self.ax.add_patch(Rectangle((mass.x, mass.y), mass.width, mass.height,
-                                        facecolor="#9b6b43", edgecolor="#5a3d28", linewidth=2, zorder=1))
+                                        facecolor="#ffb703" if is_selected else "#9b6b43",
+                                        edgecolor="#ff5a1f" if is_selected else "#5a3d28",
+                                        linewidth=4 if is_selected else 2, zorder=1))
+            for px, py in ((mass.x, mass.y), (mass.x + mass.width, mass.y + mass.height)):
+                selected = (
+                    self.selected_member_id == f"mass:{mass.mass_id}"
+                    and (
+                        (px, py) == (mass.x, mass.y) and self.selected_member_endpoint == "start"
+                        or (px, py) == (mass.x + mass.width, mass.y + mass.height) and self.selected_member_endpoint == "end"
+                    )
+                )
+                self.ax.add_patch(Rectangle((px - 5, py - 5), 10, 10,
+                                            facecolor="#ffffff" if selected else "#5a3d28",
+                                            edgecolor="#ffffff", linewidth=1.5, zorder=7))
 
         for x, y in self.design.connected_nodes():
             is_moment = (x, y) in self.design.moment_nodes
             badge = "M" if is_moment else "P"
+            badge_x = x + 6
+            badge_y = y - 8
+            self._joint_badges[(x, y)] = (badge_x, badge_y)
             self.ax.text(x + 6, y - 8, badge, fontsize=7, color="white", fontweight="bold",
                          ha="center", va="center", zorder=8,
                          bbox={"boxstyle": "circle,pad=0.15", "facecolor": "#b44a52" if is_moment else "#4c6c86"})
@@ -583,6 +803,11 @@ class EarthquakeApp:
             cx, cy = self._live_node(node[0], node[1], None)
             color = {"normal": "#4aa96c", "elevated": "#e0b300", "failed": "#c43a3a"}[joint.state]
             self.ax.add_patch(Rectangle((cx - 5, cy - 5), 10, 10, facecolor=color, edgecolor="#333", zorder=9))
+            self.ax.text(cx + 9, cy - 9,
+                         f"{joint.fatigue_damage:.0f}% fat.",
+                         fontsize=7, color="#2b1b18", fontweight="bold",
+                         ha="left", va="bottom", zorder=10,
+                         bbox={"boxstyle": "round,pad=0.18", "facecolor": "white", "edgecolor": color})
 
     def _live_node(self, x: float, y: float, brace=None) -> tuple[float, float]:
         assert self.test is not None
@@ -612,18 +837,53 @@ class EarthquakeApp:
         if y > TABLE_TOP_Y:
             y = TABLE_TOP_Y
         if self.active_tool == "mass":
-            valid = 0 <= x <= CANVAS_WIDTH - 220 and 0 <= y <= TABLE_TOP_Y - 20
-            self.ax.add_patch(Rectangle((x, y), 220, 20, facecolor="#9b6b4388",
+            if self.pending_point is None:
+                left = min(CANVAS_WIDTH - PIXELS_PER_FOOT, max(0.0, x))
+                top = min(TABLE_TOP_Y - PIXELS_PER_FOOT, max(0.0, y))
+                width = height = PIXELS_PER_FOOT
+            else:
+                start_x, start_y = self.pending_point
+                left, right = sorted((start_x, x))
+                top, bottom = sorted((start_y, y))
+                width = max(PIXELS_PER_FOOT, right - left)
+                height = max(PIXELS_PER_FOOT, bottom - top)
+            valid = left + width <= CANVAS_WIDTH and top + height <= TABLE_TOP_Y
+            self.ax.add_patch(Rectangle((left, top), width, height, facecolor="#9b6b4388",
                                         edgecolor="#2f8f4e" if valid else "#c43a3a", linestyle="--", zorder=10))
+            return
+        if self.pending_point is None:
+            x, y = self.design.snap_structural_node(x, y)
+            if self.active_tool == "beam":
+                width = 3 * PIXELS_PER_FOOT
+                valid = x + width <= CANVAS_WIDTH
+                self.ax.plot([x, x + width], [y, y], color="#2f8f4e" if valid else "#c43a3a",
+                             linewidth=6, linestyle="--", zorder=11)
+            elif self.active_tool == "column":
+                height = 6 * PIXELS_PER_FOOT
+                top = max(0.0, y - height)
+                valid = top >= 0
+                self.ax.plot([x, x], [top, y], color="#2f8f4e" if valid else "#c43a3a",
+                             linewidth=8, linestyle="--", zorder=11)
+            else:
+                end_x = min(CANVAS_WIDTH, x + 6 * PIXELS_PER_FOOT)
+                end_y = min(TABLE_TOP_Y, y + 6 * PIXELS_PER_FOOT)
+                end_x, end_y = self.design.snap_structural_node(end_x, end_y)
+                valid = ((end_x - x) ** 2 + (end_y - y) ** 2) ** 0.5 >= PIXELS_PER_FOOT
+                self.ax.plot([x, end_x], [y, end_y], color="#2f8f4e" if valid else "#c43a3a",
+                             linewidth=4, linestyle="--", zorder=11)
+                self.ax.add_patch(Rectangle((x - 5, y - 5), 10, 10,
+                                            facecolor="#2563eb88", edgecolor="#2563eb",
+                                            linestyle="--", zorder=12))
             return
         if self.pending_point is not None:
             x1, y1 = self.pending_point
             if self.active_tool == "beam":
-                x2, y2 = x, y1
+                x2, _ = self.design.snap_structural_node(x, y1)
+                y2 = y1
             elif self.active_tool == "column":
                 x2, y2 = x1, y
             else:
-                x2, y2 = x, y
+                x2, y2 = self.design.snap_structural_node(x, y)
             length_valid = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5 >= PIXELS_PER_FOOT
             color = "#2f8f4e" if length_valid else "#c43a3a"
             self.ax.plot([x1, x2], [y1, y2], color=color, linewidth=6 if self.active_tool != "brace" else 4,

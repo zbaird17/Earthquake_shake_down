@@ -24,14 +24,28 @@ class JointState:
     demand_kips: float = 0.0
     state: str = "normal"
     failed: bool = False
+    fatigue_damage: float = 0.0
+    fatigue_half_cycles: float = 0.0
+    max_bending_deg: float = 0.0
+    fatigue_angle_previous: float | None = None
+    fatigue_slope_previous: float = 0.0
+    fatigue_peak: float = 0.0
 
 
 class TestSimulation:
-    def __init__(self, design: DesignState, gravity_name: str, amplitude: float, frequency: float):
+    def __init__(
+        self,
+        design: DesignState,
+        gravity_name: str,
+        amplitude: float,
+        frequency: float,
+        duration_seconds: float | None = None,
+    ):
         self.design = design
         self.gravity_name = gravity_name
         self.amplitude = amplitude
         self.frequency = frequency
+        self.duration_seconds = duration_seconds
         self.space = pymunk.Space()
         self.space.gravity = (0, -GRAVITY_MODES[gravity_name] * PIXELS_PER_FOOT)
         self.elapsed = 0.0
@@ -46,15 +60,15 @@ class TestSimulation:
         self.mass_bodies: dict[str, pymunk.Body] = {}
         self.mass_supported: set[str] = set()
         self.table_body = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
-        self.table_body.position = (CANVAS_WIDTH / 2, 0)
+        self.table_body.position = (CANVAS_WIDTH / 2, -10)
         self.table_shape = pymunk.Poly.create_box(self.table_body, (360, 20))
-        self.table_shape.sensor = True
+        self.table_shape.sensor = False
         self.table_shape.collision_type = 10
         self.space.add(self.table_body, self.table_shape)
         def ignore_collision(arbiter, _space, _data):
             arbiter.process_collision = False
         self.space.on_collision(1, 1, begin=ignore_collision)
-        self.space.on_collision(10, 1, begin=ignore_collision)
+        self.space.on_collision(1, 2, begin=ignore_collision)
         self._build_structure()
 
     def to_physics(self, x: float, y: float) -> tuple[float, float]:
@@ -96,7 +110,7 @@ class TestSimulation:
             if not self._is_mass_supported(mass):
                 shape.sensor = False
             else:
-                shape.sensor = True
+                shape.sensor = False
                 self.mass_supported.add(mass.mass_id)
             self.space.add(body, shape)
             self.mass_bodies[mass.mass_id] = body
@@ -232,7 +246,7 @@ class TestSimulation:
 
     def set_table_motion(self) -> None:
         displacement_px, velocity_ftps = table_motion(self.elapsed, self.amplitude, self.frequency)
-        center_y = 0
+        center_y = -10
         self.table_body.position = (CANVAS_WIDTH / 2 + displacement_px, center_y)
         velocity_pxps = velocity_ftps * PIXELS_PER_FOOT
         self.table_body.velocity = (velocity_pxps, 0)
@@ -248,10 +262,10 @@ class TestSimulation:
                 if self.result is None:
                     self.result = "failure"
                     self.result_time = self.elapsed
-            elif self.elapsed >= 10.0:
+            elif self.duration_seconds is not None and self.elapsed >= self.duration_seconds:
                 if self.result is None:
                     self.result = "success"
-                    self.result_time = 10.0
+                    self.result_time = self.duration_seconds
             self.accumulator -= self.fixed_step
 
     def _update_joint_stress(self) -> None:
@@ -259,6 +273,7 @@ class TestSimulation:
         for node, joint in list(self.joints.items()):
             if joint.failed:
                 continue
+            self._update_fatigue(joint)
             tributary_mass = 0.0
             for member in self.design.members:
                 if member.member_id not in joint.member_ids:
@@ -272,7 +287,7 @@ class TestSimulation:
             resultant = ((GRAVITY_MODES[self.gravity_name]) ** 2 + horizontal ** 2) ** 0.5
             demand = tributary_mass * resultant * 0.01
             joint.demand_kips = demand
-            if demand > 15:
+            if demand > 15 or joint.fatigue_damage >= 100:
                 joint.failed = True
                 joint.state = "failed"
                 for constraint in joint.constraints:
@@ -285,6 +300,48 @@ class TestSimulation:
 
     def _point_supports_mass(self, node: tuple[float, float], mass) -> bool:
         return node in ((mass.x, mass.y + mass.height), (mass.x + mass.width, mass.y + mass.height))
+
+    def _update_fatigue(self, joint: JointState) -> None:
+        connected_bodies = [
+            self.member_bodies[member_id]
+            for member_id in joint.member_ids
+            if member_id in self.member_bodies
+        ]
+        if len(connected_bodies) < 2:
+            return
+        bending_deg = abs(
+            (connected_bodies[1].angle - connected_bodies[0].angle) * 180.0 / 3.141592653589793
+        )
+        bending_deg = min(bending_deg, 180.0)
+        joint.max_bending_deg = max(joint.max_bending_deg, bending_deg)
+        if joint.fatigue_angle_previous is None:
+            joint.fatigue_angle_previous = bending_deg
+            return
+        difference = bending_deg - joint.fatigue_angle_previous
+        slope = 1 if difference > 0 else (-1 if difference < 0 else 0)
+        if (
+            joint.fatigue_slope_previous != 0
+            and slope != 0
+            and slope != joint.fatigue_slope_previous
+            and abs(joint.fatigue_peak - bending_deg) >= 0.5
+        ):
+            amplitude = abs(bending_deg - joint.fatigue_peak)
+            if amplitude >= 1.0:
+                if amplitude >= 10.0:
+                    damage_increment = 20.0
+                elif amplitude >= 6.0:
+                    damage_increment = 100.0 / 15.0
+                elif amplitude >= 3.0:
+                    damage_increment = 2.5
+                else:
+                    damage_increment = 1.0
+                joint.fatigue_damage = min(100.0, joint.fatigue_damage + damage_increment)
+                joint.fatigue_half_cycles += 1.0
+                joint.fatigue_peak = bending_deg
+        elif slope != 0:
+            joint.fatigue_peak = max(joint.fatigue_peak, bending_deg) if slope > 0 else min(joint.fatigue_peak, bending_deg)
+        joint.fatigue_angle_previous = bending_deg
+        joint.fatigue_slope_previous = slope
 
     def _floor_mass_ground_collision(self) -> bool:
         for mass in self.design.masses:
