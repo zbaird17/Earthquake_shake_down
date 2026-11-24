@@ -40,6 +40,7 @@ class EarthquakeApp:
         self.design.load_starter_tower()
         self.test: TestSimulation | None = None
         self.testing = False
+        self.test_completed = False
         self.active_tool: str | None = None
         self.pending_point: tuple[float, float] | None = None
         self.pointer = (CANVAS_WIDTH / 2, TABLE_TOP_Y / 2)
@@ -129,8 +130,6 @@ class EarthquakeApp:
         self._update_gravity_button_states()
 
         ttk.Separator(sidebar).pack(fill="x", pady=10)
-        self.start_button = ttk.Button(sidebar, text="Start Test", command=self._toggle_test)
-        self.start_button.pack(fill="x", pady=2)
         ttk.Label(sidebar, text="Duration").pack(pady=(6, 2))
         self.duration_var = tk.StringVar(value="10")
         duration_values = [str(value) for value in range(1, 21)] + ["Indefinite"]
@@ -143,6 +142,8 @@ class EarthquakeApp:
         )
         self.duration_box.pack(fill="x")
         self.duration_box.bind("<<ComboboxSelected>>", self._set_duration)
+        self.start_button = ttk.Button(sidebar, text="Start Test", command=self._toggle_test)
+        self.start_button.pack(fill="x", pady=2)
         ttk.Button(sidebar, text="Clear Structure", command=self._clear_structure).pack(fill="x", pady=2)
         ttk.Button(sidebar, text="Load Starter Tower", command=self._load_starter).pack(fill="x", pady=2)
         ttk.Button(sidebar, text="Save Design", command=self._save_design).pack(fill="x", pady=2)
@@ -190,7 +191,7 @@ class EarthquakeApp:
         self.root.bind("<BackSpace>", lambda _event: self._delete_selected())
 
     def _select_tool(self, tool: str) -> None:
-        if self.testing:
+        if self.testing or self.test_completed:
             return
         self.active_tool = tool
         self.pending_point = None
@@ -209,7 +210,7 @@ class EarthquakeApp:
         for tool, button in self.tool_buttons.items():
             selected = tool == self.active_tool
             button.configure(
-                state="disabled" if self.testing else "normal",
+                state="disabled" if (self.testing or self.test_completed) else "normal",
                 relief="sunken" if selected else "raised",
                 bg="#dcecff" if selected else "#e7e7e7",
                 fg="#1f4f78" if selected else "#333333",
@@ -235,7 +236,7 @@ class EarthquakeApp:
         self._draw()
 
     def _on_click(self, event) -> None:
-        if self.testing:
+        if self.testing or self.test_completed:
             return
         x, y = self._canvas_position(event)
         if y > TABLE_TOP_Y:
@@ -254,6 +255,8 @@ class EarthquakeApp:
                     top, bottom = sorted((start_y, ny))
                     width = round((right - left) / PIXELS_PER_FOOT) * PIXELS_PER_FOOT
                     height = round((bottom - top) / PIXELS_PER_FOOT) * PIXELS_PER_FOOT
+                    width = max(PIXELS_PER_FOOT, width)
+                    height = max(PIXELS_PER_FOOT, height)
                     if width >= PIXELS_PER_FOOT and height >= PIXELS_PER_FOOT:
                         self.design.add_mass(left, top, width, height)
                         self._cancel_tool()
@@ -326,7 +329,7 @@ class EarthquakeApp:
         self._draw()
 
     def _on_drag(self, event) -> None:
-        if self.testing or not self.selected_member_id:
+        if self.testing or self.test_completed or not self.selected_member_id:
             return
         x, y = self._canvas_position(event)
         if self.selected_member_id.startswith("mass:"):
@@ -568,10 +571,34 @@ class EarthquakeApp:
         self._draw()
 
     def _toggle_test(self) -> None:
-        if self.testing:
-            self._stop_test()
+        if self.testing or self.test_completed:
+            if self.test_completed:
+                self._end_test()
+            else:
+                self._stop_test()
         else:
             self._start_test()
+
+    def _end_test(self) -> None:
+        if self.saved_design is not None:
+            self.design = self.saved_design
+        self.saved_design = None
+        self.test = None
+        self.testing = False
+        self.test_completed = False
+        self.test_completed = False
+        self.test_completed = False
+        self.last_animation_time = time.perf_counter()
+        self.start_button.configure(text="Start Test")
+        self.duration_box.configure(state="readonly")
+        self._update_gravity_button_states()
+        self._update_tool_button_states()
+        self.result_text = "Ready"
+        self.elapsed = 0.0
+        self.peak_g = peak_acceleration_g(self.amplitude, self.frequency)
+        self._refresh_readouts()
+        self._draw()
+
 
     def _start_test(self) -> None:
         self.saved_design = deepcopy(self.design)
@@ -583,6 +610,7 @@ class EarthquakeApp:
             self.duration_seconds,
         )
         self.testing = True
+        self.test_completed = False
         self.last_animation_time = time.perf_counter()
         self.active_tool = None
         self.pending_point = None
@@ -602,13 +630,10 @@ class EarthquakeApp:
         if not self.testing:
             return
         final_result = "Pass" if self.test and self.test.result == "success" else "Failure"
-        if self.saved_design is not None:
-            self.design = self.saved_design
-        self.saved_design = None
-        self.test = None
         self.testing = False
+        self.test_completed = True
         self.last_animation_time = time.perf_counter()
-        self.start_button.configure(text="Start Test")
+        self.start_button.configure(text="End Test")
         self.duration_box.configure(state="readonly")
         self._update_gravity_button_states()
         self._update_tool_button_states()
@@ -640,7 +665,10 @@ class EarthquakeApp:
             if self.test.result is None:
                 self.elapsed = self.test.elapsed
             else:
-                self.elapsed = self.test.result_time or self.elapsed
+                if self.test.result == "failure":
+                    self.elapsed = self.test.result_time or self.elapsed
+                else:
+                    self.elapsed = self.test.result_time or self.elapsed
                 if self.result_text != ("Pass" if self.test.result == "success" else "Failure"):
                     self.result_text = "Pass" if self.test.result == "success" else "Failure"
                     if self.test.result == "success":
@@ -648,7 +676,7 @@ class EarthquakeApp:
                         if score > self.scores[self.gravity_name]:
                             self.scores[self.gravity_name] = score
                             self._save_scores()
-                if self.test.duration_seconds is not None:
+                if self.test.duration_reached:
                     self._finish_duration_test()
             self._refresh_readouts()
             self._draw()
@@ -801,13 +829,23 @@ class EarthquakeApp:
                          linewidth=7, solid_capstyle="round", zorder=4)
         for node, joint in self.test.joints.items():
             cx, cy = self._live_node(node[0], node[1], None)
-            color = {"normal": "#4aa96c", "elevated": "#e0b300", "failed": "#c43a3a"}[joint.state]
-            self.ax.add_patch(Rectangle((cx - 5, cy - 5), 10, 10, facecolor=color, edgecolor="#333", zorder=9))
+            stress_color = {"normal": "#4aa96c", "elevated": "#e0b300", "failed": "#c43a3a"}[joint.state]
+            if joint.fatigue_damage >= 75:
+                fatigue_border = "#c43a3a"
+            elif joint.fatigue_damage >= 50:
+                fatigue_border = "#ef7d32"
+            elif joint.fatigue_damage >= 25:
+                fatigue_border = "#e0b300"
+            else:
+                fatigue_border = "#4aa96c"
+            self.ax.add_patch(Rectangle((cx - 5, cy - 5), 10, 10,
+                                        facecolor=stress_color, edgecolor=fatigue_border,
+                                        linewidth=3, zorder=9))
             self.ax.text(cx + 9, cy - 9,
                          f"{joint.fatigue_damage:.0f}% fat.",
                          fontsize=7, color="#2b1b18", fontweight="bold",
                          ha="left", va="bottom", zorder=10,
-                         bbox={"boxstyle": "round,pad=0.18", "facecolor": "white", "edgecolor": color})
+                         bbox={"boxstyle": "round,pad=0.18", "facecolor": "white", "edgecolor": fatigue_border})
 
     def _live_node(self, x: float, y: float, brace=None) -> tuple[float, float]:
         assert self.test is not None
@@ -865,15 +903,9 @@ class EarthquakeApp:
                 self.ax.plot([x, x], [top, y], color="#2f8f4e" if valid else "#c43a3a",
                              linewidth=8, linestyle="--", zorder=11)
             else:
-                end_x = min(CANVAS_WIDTH, x + 6 * PIXELS_PER_FOOT)
-                end_y = min(TABLE_TOP_Y, y + 6 * PIXELS_PER_FOOT)
-                end_x, end_y = self.design.snap_structural_node(end_x, end_y)
-                valid = ((end_x - x) ** 2 + (end_y - y) ** 2) ** 0.5 >= PIXELS_PER_FOOT
-                self.ax.plot([x, end_x], [y, end_y], color="#2f8f4e" if valid else "#c43a3a",
-                             linewidth=4, linestyle="--", zorder=11)
-                self.ax.add_patch(Rectangle((x - 5, y - 5), 10, 10,
-                                            facecolor="#2563eb88", edgecolor="#2563eb",
-                                            linestyle="--", zorder=12))
+                self.ax.scatter([x], [y], s=120, marker="o",
+                                facecolor="#2563eb", edgecolor="white",
+                                linewidth=2, zorder=13)
             return
         if self.pending_point is not None:
             x1, y1 = self.pending_point
@@ -886,8 +918,21 @@ class EarthquakeApp:
                 x2, y2 = self.design.snap_structural_node(x, y)
             length_valid = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5 >= PIXELS_PER_FOOT
             color = "#2f8f4e" if length_valid else "#c43a3a"
-            self.ax.plot([x1, x2], [y1, y2], color=color, linewidth=6 if self.active_tool != "brace" else 4,
-                         linestyle="--", zorder=11)
+            linewidth = 7 if self.active_tool == "brace" else 6
+            self.ax.plot([x1, x2], [y1, y2], color=color, linewidth=linewidth,
+                         linestyle="--", solid_capstyle="round", zorder=12)
+            if self.active_tool == "brace":
+                length_px = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
+                mx = (x1 + x2) / 2
+                my = (y1 + y2) / 2
+                self.ax.scatter([x1, x2], [y1, y2], s=120,
+                                facecolor="#2563eb", edgecolor="white",
+                                linewidth=2, zorder=13)
+                self.ax.text(mx, my - 10, f"{length_px / PIXELS_PER_FOOT:.1f} ft",
+                             ha="center", va="center", fontsize=9, fontweight="bold",
+                             color="#17233b", zorder=14,
+                             bbox={"boxstyle": "round,pad=0.25", "facecolor": "white",
+                                   "edgecolor": color})
 
     def _on_close(self) -> None:
         self.root.destroy()

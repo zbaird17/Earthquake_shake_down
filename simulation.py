@@ -53,22 +53,26 @@ class TestSimulation:
         self.fixed_step = 1.0 / 60.0
         self.result: str | None = None
         self.result_time: float | None = None
+        self.duration_reached = False
         self.joints: dict[tuple[float, float], JointState] = {}
         self.member_bodies: dict[str, pymunk.Body] = {}
         self.member_initial_poses: dict[str, tuple[pymunk.Vec2d, float]] = {}
         self.member_shapes: dict[str, pymunk.Shape] = {}
         self.mass_bodies: dict[str, pymunk.Body] = {}
         self.mass_supported: set[str] = set()
+        self.mass_free_fall_started: dict[str, float | None] = {}
+        self.mass_free_fall_previous_y: dict[str, float] = {}
         self.table_body = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
         self.table_body.position = (CANVAS_WIDTH / 2, -10)
         self.table_shape = pymunk.Poly.create_box(self.table_body, (360, 20))
         self.table_shape.sensor = False
         self.table_shape.collision_type = 10
+        self.table_shape.friction = 0.9
+        self.table_shape.elasticity = 0.05
         self.space.add(self.table_body, self.table_shape)
         def ignore_collision(arbiter, _space, _data):
             arbiter.process_collision = False
         self.space.on_collision(1, 1, begin=ignore_collision)
-        self.space.on_collision(1, 2, begin=ignore_collision)
         self._build_structure()
 
     def to_physics(self, x: float, y: float) -> tuple[float, float]:
@@ -94,6 +98,7 @@ class TestSimulation:
             shape.mass = mass
             shape.friction = 0.8
             shape.collision_type = 1
+            shape.elasticity = 0.05
             self.space.add(body, shape)
             self.member_bodies[member.member_id] = body
             self.member_initial_poses[member.member_id] = (pymunk.Vec2d(*body.position), float(body.angle))
@@ -107,6 +112,7 @@ class TestSimulation:
             shape = pymunk.Poly.create_box(body, (mass.width, mass.height))
             shape.friction = 0.7
             shape.collision_type = 2
+            shape.elasticity = 0.05
             if not self._is_mass_supported(mass):
                 shape.sensor = False
             else:
@@ -114,6 +120,8 @@ class TestSimulation:
                 self.mass_supported.add(mass.mass_id)
             self.space.add(body, shape)
             self.mass_bodies[mass.mass_id] = body
+            self.mass_free_fall_started[mass.mass_id] = None
+            self.mass_free_fall_previous_y[mass.mass_id] = body.position.y
 
         self._build_joint_constraints()
         self._build_brace_constraints()
@@ -257,15 +265,21 @@ class TestSimulation:
             self.elapsed += self.fixed_step
             self.set_table_motion()
             self.space.step(self.fixed_step)
+            self._keep_bodies_above_table()
             self._update_joint_stress()
+            if self._structural_collapse_detected():
+                if self.result is None:
+                    self.result = "failure"
+                    self.result_time = self.elapsed
             if self._floor_mass_ground_collision():
                 if self.result is None:
                     self.result = "failure"
                     self.result_time = self.elapsed
-            elif self.duration_seconds is not None and self.elapsed >= self.duration_seconds:
+            if self.duration_seconds is not None and self.elapsed >= self.duration_seconds:
                 if self.result is None:
                     self.result = "success"
                     self.result_time = self.duration_seconds
+                self.duration_reached = True
             self.accumulator -= self.fixed_step
 
     def _update_joint_stress(self) -> None:
@@ -350,6 +364,63 @@ class TestSimulation:
             if canvas_bottom >= TABLE_TOP_Y - 1:
                 return True
         return False
+
+    def _structural_collapse_detected(self) -> bool:
+        if not self.design.masses:
+            return False
+
+        gravity_py = GRAVITY_MODES[self.gravity_name] * PIXELS_PER_FOOT
+        free_falling_count = 0
+
+        for mass in self.design.masses:
+            body = self.mass_bodies[mass.mass_id]
+            previous_y = self.mass_free_fall_previous_y[mass.mass_id]
+            downward_displacement = previous_y - body.position.y
+            downward_velocity = max(0.0, -body.velocity.y)
+            is_supported = mass.mass_id in self.mass_supported
+
+            falls_freely = (
+                not is_supported
+                and downward_velocity > 0.70 * gravity_py
+                and downward_displacement > 0.75
+            )
+            if falls_freely:
+                if self.mass_free_fall_started[mass.mass_id] is None:
+                    self.mass_free_fall_started[mass.mass_id] = self.elapsed
+            else:
+                self.mass_free_fall_started[mass.mass_id] = None
+
+            started = self.mass_free_fall_started[mass.mass_id]
+            if started is not None and self.elapsed - started >= 0.20:
+                free_falling_count += 1
+
+            self.mass_free_fall_previous_y[mass.mass_id] = body.position.y
+
+        total_count = len(self.design.masses)
+        return free_falling_count >= max(1, (2 * total_count + 2) // 3)
+
+    def _keep_bodies_above_table(self) -> None:
+        table_top_physics_y = 0.0
+        for body in list(self.member_bodies.values()) + list(self.mass_bodies.values()):
+            half_height = 6
+            if body in self.mass_bodies.values():
+                mass_id = next(
+                    mass_id
+                    for mass_id, mass_body in self.mass_bodies.items()
+                    if mass_body is body
+                )
+                half_height = self.design.masses[
+                    next(
+                        index
+                        for index, mass in enumerate(self.design.masses)
+                        if mass.mass_id == mass_id
+                    )
+                ].height / 2
+            minimum_center_y = table_top_physics_y + half_height
+            if body.position.y < -30:
+                body.position = (body.position.x, minimum_center_y)
+                if body.velocity.y < 0:
+                    body.velocity = (body.velocity.x, 0)
 
     def stop(self) -> None:
         self.space = pymunk.Space()

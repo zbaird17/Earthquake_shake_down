@@ -95,6 +95,70 @@
  - Moved the duration dropdown directly below the Start Test button.
  - Finite tests now stop automatically at the configured duration and restore design controls while retaining the pass result.
 
+ ### Duration and Failure Timing
+
+ - Moved Start Test directly below the Duration dropdown.
+ - Finite ground-collision failures now retain their failure outcome and failure time while the remaining duration continues simulation.
+ - The final End Test review appears only after the full configured duration.
+
+ ### Start Button and Remaining Failure Time
+
+ - Moved the Start Test button directly below Duration.
+ - Finite failures retain the failure outcome and elapsed failure time.
+ - Simulation continues through the rest of the configured duration, then enters the End Test review state.
+
+ ### Amplitude and Frequency Precision
+
+ - Amplitude is clamped to 0.0–12.0 and frequency to 0.1–10.0.
+ - Both sliders and number boxes round and display values to exactly one decimal place.
+ - Saved and imported amplitude/frequency values are normalized to one decimal place.
+
+ ### Floor Collision Fix
+
+ - Added solid table-floor collision coverage for both falling structural members and floor masses.
+ - Narrowed member/mass collision callbacks so the shake table remains an active floor surface.
+
+ ### Structural Collapse Failure
+
+ - Specified structural explosion/collapse as an explicit failure trigger.
+ - Detection uses severe joint separation with flailing speed or three simultaneous failed joints.
+ - Implemented `_structural_collapse_detected()` and collapse recording in fixed-step simulation.
+ - Added unit coverage for three-failed-joint collapse and isolated single-joint damage.
+
+ ### Relaxed Failure Criteria
+
+ - Removed three-failed-joints and severe-speed separation as standalone run-failure triggers.
+ - Run failure is now limited to floor-mass ground collision or whole-frame loss-of-support collapse.
+ - Joint, fatigue, brace, and detached-mass damage remain indicators only.
+
+ ### Mass Free-Fall Collapse Criterion
+
+ - Whole-structure collapse will be based on sustained downward mass motion beyond supported-beam motion.
+ - One detached mass or local flailing does not fail the run.
+ - Sustained free-fall of every supported mass, or at least two-thirds of all masses, is required.
+ - Implemented per-mass sustained downward velocity/displacement timers.
+ - Added tests for whole-mass free fall and one-mass-only detachment.
+
+ ### Brace Ghost Visibility
+
+ - Added prominent brace ghost anchors before and after first click.
+ - Added live brace line and one-decimal length label from snapped ghost endpoints.
+  - Reduced the pre-click brace preview to only a small snapped anchor dot; the line and length appear after the first click.
+
+ ### Fatigue Border and Test Lock
+
+ - Made live joint borders represent cumulative fatigue damage independently of force stress fill.
+ - Added green/yellow/orange/red fatigue-border bands.
+ - Verified exact 1-ft floor-mass dimensions.
+ - Locked structure tools, clicks, and dragging during active and completed test review states.
+
+### End Test Fatigue Reset
+
+- Finite duration completion freezes the final simulated structure and fatigue indicators.
+- The Start/Stop control changes to End Test for the completed review state.
+- End Test restores the saved design and clears test-only fatigue state.
+- Finite duration now preserves the final Pymunk snapshot and fatigue indicators until End Test.
+
 ### Shaking Duration
 
 - Specified a 1–20-second duration selector in 1-second increments plus Indefinite mode.
