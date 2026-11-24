@@ -1,5 +1,11 @@
 ## Purpose
-An interactive 2D structural-dynamics learning tool for engineering students to design multi-story framed towers, compare structural choices and construction costs, and observe their approximate response to user-selected horizontal sine-wave shaking. The app supports conceptual instruction and design exploration rather than formal structural analysis or building-code certification.
+An interactive 2D structural-dynamics learning tool for engineering students to design multi-story framed towers, compare structural choices and construction costs, and observe their approximate response to user-selected horizontal sine-wave shaking. The desktop app supports conceptual instruction and design exploration rather than formal structural analysis or building-code certification.
+
+## Platform
+- Python desktop app using Tkinter, started with `python app.py`
+- Calculations with numpy, kept in their own module, separate from
+  the window code
+- Diagrams drawn with matplotlib, embedded in the window
 
 ## Inputs
 Structural Elements (Canvas Placement): Steel columns ($90/ft), steel beams ($70/ft), and steel diagonal braces ($40/ft), placed via grid snapping. Floor masses are placed freely and add no structural cost; the cost estimate covers only the members supporting them.
@@ -27,9 +33,9 @@ A clearly labeled **Load Starter Tower** button replaces the current design with
 The user sets the sine-wave amplitude and frequency, starts the test, and observes the shake table and tower. During testing, the structure cannot be edited and the selected gravity mode is locked; amplitude and frequency controls remain editable and changes affect the ongoing shaking immediately. A successful tower reaches 10 seconds without a floor-mass ground collision. After reaching 10 seconds or a floor-mass ground collision, show the result and continue simulating the tower physics and shake-table motion until the user clicks Stop Test. Keep the recorded outcome and elapsed survival time fixed while the simulation continues. Keep structural and gravity controls locked until Stop Test; then restore the saved design and return to design mode. The user may stop the test manually; Clear Structure is only available in design mode and leaves the canvas blank.
 
 ## Calculations
-2D Rigid-Body Physics (Matter.js): The simulation uses 2D rigid-body physics to model tower motion and constraints. Unit conversion must consistently represent positions, forces, acceleration, and time.
+2D Rigid-Body Physics (Pymunk): The simulation uses Pymunk 2D rigid-body physics to model tower motion and constraints. Unit conversion must consistently represent positions, forces, acceleration, and time.
 
-Stage 4 Physics: During an active test, the app uses Matter.js constraints and rigid bodies for columns, beams, and floor masses. Braces render between the live nodes at their ends and are represented in the physics model by a fixed-length constraint between the host member bodies; do not simulate each brace as a separate rigid body. Canvas position in pixels maps consistently to feet, elapsed simulation time maps to seconds, and horizontal acceleration is derived from the shake-table sine-wave motion. Advance Matter.js in fixed 1/60-second steps using an elapsed-time accumulator, independent of browser rendering rate. The table starts at zero displacement and follows `x(t) = A sin(2πft)` with the amplitude and frequency selected in Stage 3; compute its position and velocity at each physics step before updating the engine. At each joint, constrain every pair of member endpoints to translate together, using their actual local attachment points. Structural members connected by modeled joints must not collide with each other; joint constraints govern their interaction. The table supports base joints through anchor constraints, so members must not collide with the table body. Supported masses are carried by their support constraints without collision forces from their supporting members. Unsupported loose masses may collide with the structure and shake table. Earth, Mars, and Moon gravity remain selectable before a test and affect the same rigid bodies. Start/Stop and Clear actions control test state, and structural editing is locked for the full test duration.
+Stage 4 Physics: During an active test, the app uses Pymunk constraints and rigid bodies for columns, beams, and floor masses. Braces render between the live nodes at their ends and are represented in the physics model by a fixed-length constraint between the host member bodies; do not simulate each brace as a separate rigid body. Canvas position in pixels maps consistently to feet, elapsed simulation time maps to seconds, and horizontal acceleration is derived from the shake-table sine-wave motion. Advance Pymunk in fixed 1/60-second steps using an elapsed-time accumulator, independent of Matplotlib rendering rate. The table starts at zero displacement and follows `x(t) = A sin(2πft)` with the amplitude and frequency selected in Stage 3; compute its position and velocity at each physics step before updating the engine. At each joint, constrain every pair of member endpoints to translate together, using their actual local attachment points. Structural members connected by modeled joints must not collide with each other; joint constraints govern their interaction. The table supports base joints through anchor constraints, so members must not collide with the table body. Supported masses are carried by their support constraints without collision forces from their supporting members. Unsupported loose masses may collide with the structure and shake table. Earth, Mars, and Moon gravity remain selectable before a test and affect the same rigid bodies. Start/Stop and Clear actions control test state, and structural editing is locked for the full test duration.
 
 Brace and Joint Motion: Brace endpoints are the same structural nodes that terminate the connected beams or columns. During a test, each brace's visible endpoints remain coincident with the live beam/column joint positions as the frame moves. Render the line using the current distance and angle between those joints so its far end does not separate from its joint. A brace is never attached to a floor mass. Stop or reset restores its original endpoints, angle, width, and height.
 
@@ -41,7 +47,7 @@ Gravity: Earth gravity is 32.2 ft/s². Mars gravity is 12.21 ft/s², and Moon gr
 
 Shake Table Displacement: For sine-wave shaking, horizontal table displacement is `x(t) = A sin(2πft)`, where A is amplitude in inches, f is frequency in Hz, t is elapsed time in seconds, and the table starts at zero displacement. At each fixed physics step, apply the table's current position and inferred velocity to the kinematic body before advancing the physics engine. Browser rendering frames may contain zero, one, or several physics steps; rendering rate must not change the shaking trajectory or impulses transferred through member constraints.
 
-Joint Failure: Estimate joint demand as an instructional proxy: distribute each column and beam body's Matter.js mass evenly over its 1 ft grid intervals, assigning half of an interval's mass to each endpoint, and add half the mass of each supported floor mass at its beam support nodes. Braces are treated as massless axial constraints in this simplified model. At each constrained node, multiply the resulting tributary mass by the resultant of gravity and horizontal shake-table acceleration. Convert Matter.js mass units using 0.01 kip·s²/ft per mass unit. Joints below 10 kip are normal (green); joints from 10 through 15 kip are elevated (yellow); if demand exceeds 15 kip, mark the joint failed (red), remove its associated Matter.js constraints, and show the resulting collapse. This proxy is for classroom behavior and is not a code-level structural-force calculation.
+Joint Failure: Estimate joint demand as an instructional proxy: distribute each column and beam body's Pymunk mass evenly over its 1 ft grid intervals, assigning half of an interval's mass to each endpoint, and add half the mass of each supported floor mass at its beam support nodes. Braces are treated as massless axial constraints in this simplified model. At each constrained node, multiply the resulting tributary mass by the resultant of gravity and horizontal shake-table acceleration. Convert Matter.js mass units using 0.01 kip·s²/ft per mass unit. Joints below 10 kip are normal (green); joints from 10 through 15 kip are elevated (yellow); if demand exceeds 15 kip, mark the joint failed (red), remove its associated Matter.js constraints, and show the resulting collapse. This proxy is for classroom behavior and is not a code-level structural-force calculation.
 
 Tower wins if it survives for 10.0 seconds without any floor mass colliding with the ground plane.
 
@@ -58,19 +64,17 @@ Numerical Readouts:
 - Peak Ground Acceleration (g): calculated from the peak sine-wave acceleration `A(2πf)²` after converting amplitude from inches to feet and dividing by standard gravity, 32.2 ft/s². One g always means 32.2 ft/s², regardless of the selected gravity mode. Updated during a test and retained as the final result afterward.
 - High Score (g): display separate highest successful Peak Ground Acceleration values for Earth, Mars, and Moon gravity modes, all measured in standard g (32.2 ft/s²).
 
-Each gravity mode's High Score is saved separately in browser local storage for the active design. A successful run updates only the score for its selected gravity mode, and only when that run's peak acceleration in standard g exceeds that mode's stored score. Failed runs do not update any High Score. Clear Structure resets all three High Scores to zero and removes their saved values, in addition to resetting total cost, elapsed time, peak acceleration, and result readouts. Load Starter Tower also begins a fresh score set by resetting all three High Scores before loading the default structure. After either reset, successful runs build new per-gravity scores for the current structure. A fresh page load loads the starter tower and begins with all three scores at zero.
+Each gravity mode's High Score is saved separately in a JSON file in the operating-system user-data directory for the active design. A successful run updates only the score for its selected gravity mode, and only when that run's peak acceleration in standard g exceeds that mode's stored score. Failed runs do not update any High Score. Clear Structure resets all three High Scores to zero and removes their saved values, in addition to resetting total cost, elapsed time, peak acceleration, and result readouts. Load Starter Tower also begins a fresh score set by resetting all three High Scores before loading the default structure. After either reset, successful runs build new per-gravity scores for the current structure. A fresh page load loads the starter tower and begins with all three scores at zero.
 
 At the end of a run, the app shows an explicit success or failure result and includes the final elapsed survival time.
 The completed result and simulated structure remain visible until the user clicks Stop Test; completion does not automatically restore the pre-test structure. After either success or failure, keep the full physics simulation and configured sine-wave shaking active until Stop Test. Keep the outcome and elapsed-time readout from changing after the result is recorded.
 
 ## Look and Feel
-A playful classroom-simulator style and clean, single-page layout.
+A playful classroom-simulator style and clean, single-page layout. Format for a desktop app.
 
-A responsive simulation canvas supports a desktop maximum of 600 × 500 px. The structural-element toolbar is positioned on the left side of the canvas. Keep the seismic controls and gravity selection in a collapsible right-hand sidebar on desktop and tablet widths. Put the readouts in a compact panel directly beneath the canvas; on narrow mobile screens, stack the toolbar, canvas, readouts, and controls in that order. Keep sidebar sections in a single vertical column and keep the starter-tower and test controls in the sidebar rather than duplicating them in the page header. Calibration test cases and expected results are documented in `02_validation/calibration_test_cases.md`; do not display free-fall calibration controls, target references, drop simulations, or temporary masses in the app.
+A responsive simulation canvas supports a desktop maximum of 600 × 500 px. The structural-element toolbar is positioned on the left side of the canvas. Keep the seismic controls and gravity selection in a collapsible right-hand sidebar on desktop and tablet widths. Put the readouts in a compact panel directly beneath the canvas. Keep sidebar sections in a single vertical column and keep the starter-tower and test controls in the sidebar rather than duplicating them in the page header. Calibration test cases and expected results are documented in `02_validation/calibration_test_cases.md`; do not display free-fall calibration controls, target references, drop simulations, or temporary masses in the app.
 
 The shake table occupies the bottom of the canvas and is aligned exactly with the bottom snap-grid line. There is no separate ground band between the bottom grid line and the table. Structural columns connect directly to the top surface of the shake table, and no structural member or floor mass may extend below the table.
-
-On mobile viewports, the controls stack beneath the canvas. Placement controls remain touch-friendly, and controls must not obscure the canvas during testing.
 
 The interface provides clear active, disabled, hover, and failure states. When a test ends, both the Start test result button and the status panel below the readouts are green for a pass and red for a failure, with readable white text. Do not show a ground-motion trace; the table motion is always the configured sine wave.
 
@@ -100,7 +104,7 @@ Acceptance Checks:
 - A floor mass without beam support falls as soon as the test begins.
 - Clear Structure resets test readouts and returns the app to the initial blank state.
 - The Earth, Mars, and Moon gravity controls work and apply the specified backgrounds.
-- Desktop and mobile layouts remain usable and keep controls from obscuring the canvas.
+- Layouts remain usable and keep controls from obscuring the canvas.
 
 ## Out of Scope
 - Three-dimensional analysis, out-of-plane motion, and torsion.
@@ -114,13 +118,14 @@ Structural joints are pinned by default and allow connected members to rotate re
 Brace-to-beam and brace-to-column anchors are connected structural nodes even when they fall between the host member's endpoints. Show P/M badges at these anchors, count moment-frame premiums there, and apply the selected joint behavior to the brace connection.
 
 Place the Earth/Mars/Moon gravity control in the right-hand controls sidebar beneath the shaking inputs. Earth uses 32.2 ft/s² and the blue appearance; Mars uses 12.21 ft/s² and the red appearance; Moon uses 5.33 ft/s² and the grey appearance. Disable gravity-mode buttons for the full duration of a test; leave the amplitude and frequency controls enabled and live.
+The selected gravity button remains visibly selected in design mode with a contrasting fill and border, and the canvas appearance continues to match the same Earth/Mars/Moon theme. Selection state must update immediately after a gravity button is clicked. During a test, the selected button remains visibly selected while all gravity buttons are disabled.
 
 ## Build Stages
 
 ### Stage 1: Page Mockup
-Create the responsive page layout without Matter.js or real calculations. Include the desktop canvas maximum of 600 × 500 px, left structural toolbar, collapsible sidebar, simulation controls, gravity control, and placeholder readouts.
+Create the responsive page layout without Pymunk or real calculations. Include the desktop canvas maximum of 600 × 500 px, left structural toolbar, collapsible sidebar, simulation controls, gravity control, and placeholder readouts.
 
-Test: Verify desktop and mobile layouts, toolbar placement, sidebar collapse, control usability, and that no layout change obscures the canvas.
+Test: Verify layouts, toolbar placement, sidebar collapse, control usability, and that no layout change obscures the canvas.
 
 ### Stage 2: Structure Placement
 Add 1 ft grid snapping and basic design editing. Support columns, beams, braces, floor masses, blank starting state, click selection, mouse repositioning, Delete-key removal, Escape deselection and placement cancellation, starter-tower replacement, and visible-canvas boundary validation. Keep the shake table on the bottom snap-grid line, place column bases directly on the table at that line, and prevent structural members or masses from extending below it.
@@ -133,7 +138,7 @@ Connect live cost calculations and input controls. Add the 0–12 inch amplitude
 Test: Verify element-cost arithmetic, control limits, synchronized inputs, default values, gravity changes, and required Mars red/Moon grey backgrounds.
 
 ### Stage 4: Basic Physics and Shake Motion
-Add Matter.js and a basic shake table. Implement consistent unit conversion, Earth/Mars/Moon gravity, sine-wave displacement, tower and table animation, Start/Stop behavior, and editing locks during tests.
+Add Pymunk and a basic shake table. Implement consistent unit conversion, Earth/Mars/Moon gravity, sine-wave displacement, tower and table animation, Start/Stop behavior, and editing locks during tests.
 
 Test: Calibrate 10 ft free-fall targets for Earth, Mars, and Moon. Measure 10 cycles and compare table period and extreme displacement with configured values.
 
@@ -143,6 +148,6 @@ Add the 15-kip joint-force threshold, green/yellow/red stress states, constraint
 Test: Verify one successful 10-second run, a joint-failure run that continues collapsing until ground contact or 10 seconds, one ground-collision run, post-result table motion until Stop Test, and one manually stopped test.
 
 ### Stage 6: Readouts, Persistence, and Polish
-Complete live Total Cost, elapsed time, peak table acceleration, separate successful-run-only local-storage High Scores for each gravity mode, Clear Structure and Load Starter Tower resets that clear all High Scores, touch-friendly mobile controls, and final visual polish.
+Complete live Total Cost, elapsed time, peak table acceleration, separate successful-run-only local-storage High Scores for each gravity mode, Clear Structure and Load Starter Tower resets that clear all High Scores,and final visual polish.
 
 Test: Run the full acceptance checklist; verify peak acceleration calculation, successful-run-only per-gravity High Score updates for the active structure, failed-run behavior, Clear Structure and Load Starter Tower resetting all three High Scores and their saved values, fresh page load starting with zero High Scores, and desktop/mobile usability.
