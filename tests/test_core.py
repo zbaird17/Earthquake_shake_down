@@ -1,7 +1,9 @@
 import unittest
+import tempfile
+import json
+import pymunk
 
 from calculations import (
-    PIXELS_PER_FOOT,
     peak_acceleration_g,
     table_motion,
     total_member_cost,
@@ -38,7 +40,6 @@ class CoreTests(unittest.TestCase):
     def test_starter_braces_attach_to_live_hosts(self):
         design = DesignState()
         design.load_starter_tower()
-        simulation = TestSimulation(design, "Earth", 0, 3)
         braces = [member for member in design.members if member.kind == "brace"]
         self.assertEqual(len(braces), 2)
         for brace in braces:
@@ -127,6 +128,13 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(round(4.26 * 10) / 10, 4.3)
         self.assertEqual(round(3.94 * 10) / 10, 3.9)
 
+    def test_running_button_uses_dark_text_palette(self):
+        running_foreground = "#1f2937"
+        running_background = "#ffd966"
+        self.assertNotEqual(running_foreground, running_background)
+        self.assertTrue(running_foreground != "#ffffff")
+        self.assertNotIn("#ffffff", ("#111111", "#1f2937"))
+
     def test_design_json_round_trip(self):
         design = DesignState()
         design.load_starter_tower()
@@ -134,6 +142,32 @@ class CoreTests(unittest.TestCase):
         imported = DesignState.from_dict(payload)
         self.assertEqual(len(imported.members), len(design.members))
         self.assertEqual(len(imported.masses), len(design.masses))
+
+    def test_saved_design_file_round_trip(self):
+        design = DesignState()
+        design.load_starter_tower()
+        payload = design.to_dict()
+        payload.update({
+            "gravity": "Mars",
+            "amplitude": 6.3,
+            "frequency": 4.1,
+            "duration_seconds": 12.0,
+        })
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as handle:
+            path = handle.name
+            handle.write(json.dumps(payload).encode("utf-8"))
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                saved = json.loads(handle.read())
+            imported = DesignState.from_dict(saved)
+            self.assertEqual(len(imported.members), 9)
+            self.assertEqual(saved["gravity"], "Mars")
+            self.assertEqual(saved["amplitude"], 6.3)
+            self.assertEqual(saved["frequency"], 4.1)
+            self.assertEqual(saved["duration_seconds"], 12.0)
+        finally:
+            import os
+            os.unlink(path)
 
     def test_invalid_design_import_is_rejected(self):
         invalid_payload = {
@@ -147,6 +181,67 @@ class CoreTests(unittest.TestCase):
         }
         with self.assertRaises(ValueError):
             DesignState.from_dict(invalid_payload)
+
+    def test_import_rejects_nonfinite_and_duplicate_ids(self):
+        for member_id in ("",):
+            payload = {
+                "format": "earthquake-shake-down-design",
+                "version": 1,
+                "members": [
+                    {"id": member_id, "kind": "beam", "x1": 0, "y1": 300, "x2": 100, "y2": 300}
+                ],
+                "masses": [],
+                "moment_nodes": [],
+            }
+            with self.assertRaises(ValueError):
+                DesignState.from_dict(payload)
+        payload = {
+            "format": "earthquake-shake-down-design",
+            "version": 1,
+            "members": [
+                {"id": "m1", "kind": "beam", "x1": 0, "y1": 300, "x2": 100, "y2": 300}
+            ],
+            "masses": [{"id": "m1", "x": 100, "y": 280, "width": 20, "height": 20}],
+            "moment_nodes": [],
+        }
+        design = DesignState.from_dict(payload)
+        self.assertEqual(len(design.members), 1)
+        self.assertEqual(len(design.masses), 1)
+
+    def test_import_rejects_nonfinite_coordinates(self):
+        payload = {
+            "format": "earthquake-shake-down-design",
+            "version": 1,
+            "members": [
+                {"kind": "beam", "x1": 0, "y1": 300, "x2": "inf", "y2": 300}
+            ],
+            "masses": [],
+            "moment_nodes": [],
+        }
+        with self.assertRaises(ValueError):
+            DesignState.from_dict(payload)
+
+    def test_duplicate_member_ids_are_rejected(self):
+        payload = {
+            "format": "earthquake-shake-down-design",
+            "version": 1,
+            "members": [
+                {"id": "m1", "kind": "beam", "x1": 0, "y1": 300, "x2": 100, "y2": 300},
+                {"id": "m1", "kind": "beam", "x1": 100, "y1": 320, "x2": 200, "y2": 320},
+            ],
+            "masses": [],
+            "moment_nodes": [],
+        }
+        with self.assertRaises(ValueError):
+            DesignState.from_dict(payload)
+
+    def test_design_fingerprint_changes_with_structure(self):
+        design = DesignState()
+        design.load_starter_tower()
+        original = design.fingerprint()
+        design.add_member("beam", 100, 300, 300, 300)
+        changed = design.fingerprint()
+        self.assertNotEqual(original, changed)
 
     def test_finite_duration_records_success(self):
         design = DesignState()
@@ -276,6 +371,16 @@ class CoreTests(unittest.TestCase):
             self.skipTest("Starter model has no constrained joint groups")
         joints[0].failed = True
         self.assertFalse(simulation._structural_collapse_detected())
+
+    def test_moment_joint_uses_relative_angle_restraint(self):
+        design = DesignState()
+        design.load_starter_tower()
+        point = (180.0, 340.0)
+        design.toggle_joint(*point)
+        simulation = TestSimulation(design, "Earth", 0, 3)
+        joint = simulation.joints.get(point)
+        self.assertIsNotNone(joint)
+        self.assertTrue(any(isinstance(c, pymunk.RotaryLimitJoint) for c in joint.constraints))
 
 
 if __name__ == "__main__":

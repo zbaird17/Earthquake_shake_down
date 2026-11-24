@@ -16,17 +16,15 @@ matplotlib.use("TkAgg")
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle
-from matplotlib.lines import Line2D
 
 from calculations import (
     CANVAS_HEIGHT,
     CANVAS_WIDTH,
     TABLE_TOP_Y,
     PIXELS_PER_FOOT,
-    GRAVITY_MODES,
     peak_acceleration_g,
 )
-from structure_model import DesignState, Member, FloorMass
+from structure_model import DesignState
 from simulation import TestSimulation
 
 
@@ -60,6 +58,7 @@ class EarthquakeApp:
         self.last_animation_time = time.perf_counter()
 
         self._build_ui()
+        self._set_result_style("normal")
         self._load_scores()
         self._bind_events()
         self._draw()
@@ -381,7 +380,7 @@ class EarthquakeApp:
         return ((px - x) ** 2 + (py - y) ** 2) ** 0.5 <= 8
 
     def _delete_selected(self) -> None:
-        if self.testing or not self.selected_member_id:
+        if self.testing or self.test_completed or not self.selected_member_id:
             return
         if self.selected_member_id.startswith("mass:"):
             self.design.remove_mass(self.selected_member_id.split(":", 1)[1])
@@ -421,13 +420,13 @@ class EarthquakeApp:
         self._refresh_readouts()
 
     def _set_duration(self, _event=None) -> None:
-        if self.testing:
+        if self.testing or self.test_completed:
             return
         selected = self.duration_var.get()
         self.duration_seconds = None if selected == "Indefinite" else float(selected)
 
     def _set_gravity(self, name: str) -> None:
-        if self.testing:
+        if self.testing or self.test_completed:
             return
         self.gravity_name = name
         self._update_gravity_button_states()
@@ -453,48 +452,38 @@ class EarthquakeApp:
                 bg=background,
                 fg=foreground,
                 activebackground=selected_colors[name],
-                activeforeground="#ffffff",
-                disabledforeground="#ffffff",
+                activeforeground="#111111",
+                disabledforeground="#111111",
                 relief=relief,
                 borderwidth=3 if is_selected else 2,
                 state="disabled" if self.testing else "normal",
             )
 
     def _clear_structure(self) -> None:
-        if self.testing:
+        if self.testing or self.test_completed:
             return
         self.design.clear()
         self.scores = {name: 0.0 for name in ("Earth", "Mars", "Moon")}
         self.elapsed = 0.0
         self.peak_g = peak_acceleration_g(self.amplitude, self.frequency)
         self.result_text = "Ready"
-        self._save_scores()
+        self._reset_scores()
         self._refresh_readouts()
         self._draw()
 
     def _load_starter(self) -> None:
-        if self.testing:
+        if self.testing or self.test_completed:
             return
         self.design.load_starter_tower()
         self.scores = {name: 0.0 for name in ("Earth", "Mars", "Moon")}
         self.elapsed = 0.0
         self.peak_g = peak_acceleration_g(self.amplitude, self.frequency)
         self.result_text = "Ready"
-        self._save_scores()
+        self._reset_scores()
         self._refresh_readouts()
         self._draw()
 
-    def _save_design(self) -> None:
-        if self.testing:
-            return
-        path = filedialog.asksaveasfilename(
-            title="Save Design",
-            defaultextension=".json",
-            filetypes=[("Earthquake design", "*.json"), ("JSON files", "*.json")],
-            initialfile="earthquake-design.json",
-        )
-        if not path:
-            return
+    def _write_design_file(self, path: str) -> None:
         payload = self.design.to_dict()
         payload.update({
             "gravity": self.gravity_name,
@@ -502,25 +491,44 @@ class EarthquakeApp:
             "frequency": round(self.frequency, 1),
             "duration_seconds": self.duration_seconds,
         })
+        Path(path).write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    def _read_design_file(self, path: str) -> tuple[DesignState, dict]:
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+        imported = DesignState.from_dict(payload)
+        return imported, payload
+
+    def _save_design(self) -> None:
+        if self.testing or self.test_completed:
+            return
+        path = filedialog.asksaveasfilename(
+            parent=self.root,
+            title="Save Design",
+            defaultextension=".json",
+            filetypes=[("Earthquake design", "*.json"), ("JSON files", "*.json")],
+            initialfile="earthquake-design.json",
+        )
+        if not path:
+            return
         try:
-            Path(path).write_text(json.dumps(payload, indent=2), encoding="utf-8")
+            self._write_design_file(path)
             messagebox.showinfo("Design Saved", f"Design saved to:\n{path}")
         except OSError as error:
             messagebox.showerror("Save Error", f"Could not save the design:\n{error}")
 
     def _import_design(self) -> None:
-        if self.testing:
+        if self.testing or self.test_completed:
             return
         path = filedialog.askopenfilename(
+            parent=self.root,
             title="Import Design",
             filetypes=[("Earthquake design", "*.json"), ("JSON files", "*.json")],
         )
         if not path:
             return
         try:
-            payload = json.loads(Path(path).read_text(encoding="utf-8"))
-            imported = DesignState.from_dict(payload)
-        except (json.JSONDecodeError, OSError, ValueError) as error:
+            imported, payload = self._read_design_file(path)
+        except (json.JSONDecodeError, OSError, ValueError, OverflowError) as error:
             messagebox.showerror("Import Error", f"Could not import the design:\n{error}")
             return
 
@@ -564,7 +572,7 @@ class EarthquakeApp:
         self.elapsed = 0.0
         self.peak_g = peak_acceleration_g(amplitude, frequency)
         self.scores = {name: 0.0 for name in ("Earth", "Mars", "Moon")}
-        self._save_scores()
+        self._reset_scores()
         self._update_gravity_button_states()
         self._update_tool_button_states()
         self._refresh_readouts()
@@ -616,13 +624,43 @@ class EarthquakeApp:
         self.elapsed = 0.0
         self.peak_g = peak_acceleration_g(self.amplitude, self.frequency)
         self.result_text = "Testing"
+        self._set_result_style("running")
         self.start_button.configure(text="Stop Test")
         self.duration_box.configure(state="disabled")
         self._update_gravity_button_states()
-        for member in self.design.members:
-            pass
         self._refresh_readouts()
         self._draw()
+
+    def _set_result_style(self, state: str) -> None:
+        style = ttk.Style(self.root)
+        if state == "running":
+            style.configure("Running.TButton",
+                            background="#ffd966",
+                            foreground="#1f2937",
+                            font=("TkDefaultFont", 10, "bold"))
+            style.map("Running.TButton",
+                      background=[("active", "#ffbf00"), ("pressed", "#e6a700")],
+                      foreground=[("!disabled", "#1f2937")])
+            self.start_button.configure(style="Running.TButton")
+            self.result_label.configure(style="Result.Normal.TLabel")
+        elif state == "pass":
+            style.configure("Pass.TButton", background="#2f855a", foreground="#111111")
+            style.map("Pass.TButton", foreground=[("!disabled", "#111111")])
+            style.configure("Result.Pass.TLabel", foreground="#176b3a")
+            self.start_button.configure(style="Pass.TButton")
+            self.result_label.configure(style="Result.Pass.TLabel")
+        elif state == "failure":
+            style.configure("Failure.TButton", background="#c43a3a", foreground="#111111")
+            style.map("Failure.TButton", foreground=[("!disabled", "#111111")])
+            style.configure("Result.Failure.TLabel", foreground="#a61b1b")
+            self.start_button.configure(style="Failure.TButton")
+            self.result_label.configure(style="Result.Failure.TLabel")
+        else:
+            style.configure("Normal.TButton", background="#e7e7e7", foreground="#333333")
+            style.map("Normal.TButton", foreground=[("!disabled", "#111111")])
+            style.configure("Result.Normal.TLabel", foreground="#333333")
+            self.start_button.configure(style="Normal.TButton")
+            self.result_label.configure(style="Result.Normal.TLabel")
 
     def _finish_duration_test(self) -> None:
         if not self.testing:
@@ -637,6 +675,7 @@ class EarthquakeApp:
         self._update_gravity_button_states()
         self._update_tool_button_states()
         self.result_text = final_result
+        self._set_result_style("pass" if final_result == "Pass" else "failure")
         self._refresh_readouts()
         self._draw()
 
@@ -652,6 +691,7 @@ class EarthquakeApp:
         self._update_gravity_button_states()
         self._update_tool_button_states()
         self.result_text = "Stopped"
+        self._set_result_style("normal")
         self._refresh_readouts()
         self._draw()
 
@@ -695,15 +735,42 @@ class EarthquakeApp:
             return
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
+            designs = data.get("designs", {}) if isinstance(data, dict) else {}
+            key = self.design.fingerprint()
+            saved = designs.get(key, {}) if isinstance(designs, dict) else {}
             for name in ("Earth", "Mars", "Moon"):
-                self.scores[name] = float(data.get(name, 0.0))
+                self.scores[name] = float(saved.get(name, 0.0))
         except (json.JSONDecodeError, OSError):
             self.scores = {name: 0.0 for name in ("Earth", "Mars", "Moon")}
         self._refresh_readouts()
 
+    def _reset_scores(self) -> None:
+        self.scores = {name: 0.0 for name in ("Earth", "Mars", "Moon")}
+        try:
+            path = self._score_path()
+            if not path.exists():
+                return
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(data, dict) or not isinstance(data.get("designs"), dict):
+                return
+            data["designs"].pop(self.design.fingerprint(), None)
+            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        except (json.JSONDecodeError, OSError):
+            pass
+
     def _save_scores(self) -> None:
         try:
-            self._score_path().write_text(json.dumps(self.scores), encoding="utf-8")
+            path = self._score_path()
+            data = {"designs": {}}
+            if path.exists():
+                try:
+                    existing = json.loads(path.read_text(encoding="utf-8"))
+                    if isinstance(existing, dict) and isinstance(existing.get("designs"), dict):
+                        data["designs"] = existing["designs"]
+                except (json.JSONDecodeError, OSError):
+                    pass
+            data["designs"][self.design.fingerprint()] = dict(self.scores)
+            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         except OSError:
             pass
 
@@ -829,6 +896,15 @@ class EarthquakeApp:
             self.ax.plot([p1[0], p2[0]], [p1[1], p2[1]], color="#b56a28",
                          linewidth=7, solid_capstyle="round", zorder=4)
         for node, joint in self.test.joints.items():
+            if joint.failed:
+                continue
+            active_constraints = [
+                constraint
+                for constraint in joint.constraints
+                if constraint in self.test.space.constraints
+            ]
+            if len(active_constraints) < 1:
+                continue
             cx, cy = self._live_node(node[0], node[1], None)
             stress_color = {"normal": "#4aa96c", "elevated": "#e0b300", "failed": "#c43a3a"}[joint.state]
             if joint.fatigue_damage >= 75:
@@ -939,11 +1015,6 @@ class EarthquakeApp:
         self.root.destroy()
 
 
-def pymunk_node(node: tuple[float, float]) -> tuple[float, float]:
-    x, y = node
-    import pymunk
-    # This helper is replaced below by direct coordinate conversion when needed.
-    return x, y
 
 
 def main() -> None:

@@ -118,6 +118,22 @@
  - Added solid table-floor collision coverage for both falling structural members and floor masses.
  - Narrowed member/mass collision callbacks so the shake table remains an active floor surface.
 
+### Shaking Duration
+
+- Specified a 1–20-second duration selector in 1-second increments plus Indefinite mode.
+- Finite mode records pass/failure at its configured duration or floor-mass ground collision.
+- Indefinite mode continues until ground collision or manual Stop Test.
+
+### Fatigue Stress Spec Features Entry
+
+- Moved fatigue stress into the spec's explicit Features section.
+- Documented per-node cycle tracking, 100% cumulative damage failure, joint stress display, reset behavior, and continued simulation after fatigue failure.
+
+### Save and Import Designs
+
+- Added a Features specification for JSON design export/import.
+- Defined validation, test-locking, score reset, and unchanged-design behavior for invalid imports.
+
  ### Structural Collapse Failure
 
  - Specified structural explosion/collapse as an explicit failure trigger.
@@ -172,19 +188,39 @@
 - End Test restores the saved design and clears test-only fatigue state.
 - Finite duration now preserves the final Pymunk snapshot and fatigue indicators until End Test.
 
-### Shaking Duration
+### Repository Audit Fixes
 
-- Specified a 1–20-second duration selector in 1-second increments plus Indefinite mode.
-- Finite mode records pass/failure at its configured duration or floor-mass ground collision.
-- Indefinite mode continues until ground collision or manual Stop Test.
+- Reviewed spec, app, physics, tests, prompt log, and file organization.
+- Added finite-coordinate/unique-ID import validation and design-fingerprint high scores.
+- Improved moment-frame relative-angle restraint and supported-mass collision handling.
+- Changed fatigue cycles to count damage after complete alternating reversals.
+- Added pass/failure visual result styles and filtered live failed-joint indicators.
+- Continued application startup and test validation after the audit fixes.
 
-### Fatigue Stress Spec Features Entry
+### README Documentation
 
-- Moved fatigue stress into the spec's explicit Features section.
-- Documented per-node cycle tracking, 100% cumulative damage failure, joint stress display, reset behavior, and continued simulation after fatigue failure.
+- Created a top-level `README.md`.
+- Documented Windows installation, virtual-environment setup, requirements, application launch, tests, and basic use.
 
-### Save and Import Designs
+### Save and Import Repair
 
-- Added a Features specification for JSON design export/import.
-- Defined validation, test-locking, score reset, and unchanged-design behavior for invalid imports.
+- Ensured Save/Import are design-mode-only and blocked through completed-test review.
+- Added direct design-file write/read helpers for testable JSON round trips.
+- Fixed actual temporary-file JSON round-trip coverage and verified app startup; all 33 tests pass.
 
+### Running Test Button Contrast
+
+- Added a readable active-running button style with dark text and contrasting pale-yellow/orange background.
+- Preserved green/red styling for completed pass/failure states.
+- Removed early normal-style initialization and applied it after `_build_ui` creates the test button.
+
+### Sidebar Text Contrast
+
+- Forced pass/failure button text to dark foreground.
+- Removed white foreground text from gravity and test controls.
+- Kept red/green pass/failure indication in backgrounds only.
+
+### Sidebar Black Text
+
+- Required all sidebar labels and test controls to keep dark text.
+- Pass/failure states use background/border color only.

@@ -5,6 +5,8 @@ from typing import Literal
 
 from calculations import CANVAS_WIDTH, TABLE_TOP_Y, PIXELS_PER_FOOT, snap, point_in_canvas, segment_length
 import math
+import hashlib
+import json
 
 MemberKind = Literal["column", "beam", "brace"]
 
@@ -281,6 +283,11 @@ class DesignState:
             ],
         }
 
+    def fingerprint(self) -> str:
+        payload = self.to_dict()
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
     @classmethod
     def from_dict(cls, data: dict) -> "DesignState":
         if not isinstance(data, dict):
@@ -296,6 +303,8 @@ class DesignState:
             raise ValueError("Design file is missing member or floor-mass lists.")
 
         state = cls()
+        member_ids: set[str] = set()
+        mass_ids: set[str] = set()
         for item in members_data:
             if not isinstance(item, dict):
                 raise ValueError("Invalid member entry.")
@@ -309,11 +318,17 @@ class DesignState:
                 y2 = float(item["y2"])
             except (KeyError, TypeError, ValueError):
                 raise ValueError("Invalid structural member coordinates.")
+            if not all(math.isfinite(value) for value in (x1, y1, x2, y2)):
+                raise ValueError("Structural member coordinates must be finite.")
             member = state.add_member(kind, x1, y1, x2, y2)
             if member is None:
                 raise ValueError("A structural member is outside bounds or below 1 foot.")
             if isinstance(item.get("id"), str):
-                member.member_id = item["id"]
+                imported_id = item["id"].strip()
+                if not imported_id or imported_id in member_ids:
+                    raise ValueError("Member IDs must be unique and nonempty.")
+                member.member_id = imported_id
+            member_ids.add(member.member_id)
 
         for item in masses_data:
             if not isinstance(item, dict):
@@ -325,11 +340,17 @@ class DesignState:
                 height = float(item["height"])
             except (KeyError, TypeError, ValueError):
                 raise ValueError("Invalid floor-mass dimensions.")
+            if not all(math.isfinite(value) for value in (x, y, width, height)):
+                raise ValueError("Floor-mass dimensions must be finite.")
             mass = state.add_mass(x, y, width, height)
             if mass is None:
                 raise ValueError("A floor mass is outside bounds or below 1 foot.")
             if isinstance(item.get("id"), str):
-                mass.mass_id = item["id"]
+                imported_id = item["id"].strip()
+                if not imported_id or imported_id in mass_ids:
+                    raise ValueError("Mass IDs must be unique and nonempty.")
+                mass.mass_id = imported_id
+            mass_ids.add(mass.mass_id)
 
         if not isinstance(moment_data, list):
             raise ValueError("Invalid moment-node list.")

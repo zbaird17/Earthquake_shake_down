@@ -1,8 +1,6 @@
 """Pymunk-backed fixed-step simulation for the tower."""
 
 from dataclasses import dataclass
-from math import pi
-
 import pymunk
 
 from calculations import (
@@ -30,6 +28,8 @@ class JointState:
     fatigue_angle_previous: float | None = None
     fatigue_slope_previous: float = 0.0
     fatigue_peak: float = 0.0
+    fatigue_trough: float = 0.0
+    fatigue_reversal_count: int = 0
 
 
 class TestSimulation:
@@ -75,6 +75,7 @@ class TestSimulation:
         def ignore_collision(arbiter, _space, _data):
             arbiter.process_collision = False
         self.space.on_collision(1, 1, begin=ignore_collision)
+        self.space.on_collision(4, 1, begin=ignore_collision)
         self._build_structure()
 
     def to_physics(self, x: float, y: float) -> tuple[float, float]:
@@ -117,8 +118,10 @@ class TestSimulation:
             shape.elasticity = 0.05
             if not self._is_mass_supported(mass):
                 shape.sensor = False
+                shape.collision_type = 2
             else:
                 shape.sensor = False
+                shape.collision_type = 4
                 self.mass_supported.add(mass.mass_id)
             self.space.add(body, shape)
             self.mass_bodies[mass.mass_id] = body
@@ -203,8 +206,15 @@ class TestSimulation:
                 self.space.add(pin)
                 constraints.append(pin)
                 if point in self.design.moment_nodes:
-                    lever = 1.25 * PIXELS_PER_FOOT
-                    motor = pymunk.RotaryLimitJoint(first_body, body, first_body.angle - lever / 100, first_body.angle + lever / 100)
+                    relative_angle = body.angle - first_body.angle
+                    lever_tolerance = 0.025
+                    motor = pymunk.RotaryLimitJoint(
+                        first_body,
+                        body,
+                        relative_angle - lever_tolerance,
+                        relative_angle + lever_tolerance,
+                    )
+                    motor.damping = 0.5
                     motor.max_force = 100000
                     self.space.add(motor)
                     constraints.append(motor)
@@ -339,6 +349,8 @@ class TestSimulation:
         joint.max_bending_deg = max(joint.max_bending_deg, bending_deg)
         if joint.fatigue_angle_previous is None:
             joint.fatigue_angle_previous = bending_deg
+            joint.fatigue_peak = bending_deg
+            joint.fatigue_trough = bending_deg
             return
         difference = bending_deg - joint.fatigue_angle_previous
         slope = 1 if difference > 0 else (-1 if difference < 0 else 0)
@@ -348,21 +360,29 @@ class TestSimulation:
             and slope != joint.fatigue_slope_previous
             and abs(joint.fatigue_peak - bending_deg) >= 0.5
         ):
-            amplitude = abs(bending_deg - joint.fatigue_peak)
-            if amplitude >= 1.0:
-                if amplitude >= 10.0:
-                    damage_increment = 20.0
-                elif amplitude >= 6.0:
-                    damage_increment = 100.0 / 15.0
-                elif amplitude >= 3.0:
-                    damage_increment = 2.5
-                else:
-                    damage_increment = 1.0
-                joint.fatigue_damage = min(100.0, joint.fatigue_damage + damage_increment)
-                joint.fatigue_half_cycles += 1.0
-                joint.fatigue_peak = bending_deg
+            reversed_peak = joint.fatigue_peak
+            amplitude = abs(bending_deg - reversed_peak)
+            joint.fatigue_half_cycles += 0.5
+            joint.fatigue_reversal_count += 1
+            if amplitude >= 0.5:
+                joint.fatigue_trough = min(joint.fatigue_trough, bending_deg)
+            if joint.fatigue_reversal_count >= 2:
+                cycle_amplitude = abs(joint.fatigue_peak - joint.fatigue_trough)
+                if cycle_amplitude >= 1.0:
+                    if cycle_amplitude >= 10.0:
+                        damage_increment = 20.0
+                    elif cycle_amplitude >= 6.0:
+                        damage_increment = 100.0 / 15.0
+                    elif cycle_amplitude >= 3.0:
+                        damage_increment = 2.5
+                    else:
+                        damage_increment = 1.0
+                    joint.fatigue_damage = min(100.0, joint.fatigue_damage + damage_increment)
+                joint.fatigue_reversal_count = 0
+            joint.fatigue_peak = bending_deg
         elif slope != 0:
             joint.fatigue_peak = max(joint.fatigue_peak, bending_deg) if slope > 0 else min(joint.fatigue_peak, bending_deg)
+            joint.fatigue_trough = min(joint.fatigue_trough, bending_deg)
         joint.fatigue_angle_previous = bending_deg
         joint.fatigue_slope_previous = slope
 
@@ -380,7 +400,6 @@ class TestSimulation:
 
         for mass in self.design.masses:
             body = self.mass_bodies[mass.mass_id]
-            mass_canvas = mass
             cx = body.position.x + CANVAS_WIDTH / 2
             cy = TABLE_TOP_Y - body.position.y
             mass_left = cx - mass.width / 2
