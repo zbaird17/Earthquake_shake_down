@@ -586,8 +586,6 @@ class EarthquakeApp:
         self.test = None
         self.testing = False
         self.test_completed = False
-        self.test_completed = False
-        self.test_completed = False
         self.last_animation_time = time.perf_counter()
         self.start_button.configure(text="Start Test")
         self.duration_box.configure(state="readonly")
@@ -630,7 +628,8 @@ class EarthquakeApp:
         if not self.testing:
             return
         final_result = "Pass" if self.test and self.test.result == "success" else "Failure"
-        self.testing = False
+        # Keep Pymunk and gravity active after the table stops; End Test restores design mode.
+        self.testing = True
         self.test_completed = True
         self.last_animation_time = time.perf_counter()
         self.start_button.configure(text="End Test")
@@ -662,7 +661,9 @@ class EarthquakeApp:
         self.last_animation_time = now
         if self.testing and self.test:
             self.test.step(min(real_delta, 0.25))
-            if self.test.result is None:
+            if self.test_completed:
+                pass
+            elif self.test.result is None:
                 self.elapsed = self.test.elapsed
             else:
                 if self.test.result == "failure":

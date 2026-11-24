@@ -54,6 +54,7 @@ class TestSimulation:
         self.result: str | None = None
         self.result_time: float | None = None
         self.duration_reached = False
+        self.table_motion_stopped = False
         self.joints: dict[tuple[float, float], JointState] = {}
         self.member_bodies: dict[str, pymunk.Body] = {}
         self.member_initial_poses: dict[str, tuple[pymunk.Vec2d, float]] = {}
@@ -62,6 +63,7 @@ class TestSimulation:
         self.mass_supported: set[str] = set()
         self.mass_free_fall_started: dict[str, float | None] = {}
         self.mass_free_fall_previous_y: dict[str, float] = {}
+        self.mass_wild_motion_started: dict[str, float | None] = {}
         self.table_body = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
         self.table_body.position = (CANVAS_WIDTH / 2, -10)
         self.table_shape = pymunk.Poly.create_box(self.table_body, (360, 20))
@@ -122,6 +124,7 @@ class TestSimulation:
             self.mass_bodies[mass.mass_id] = body
             self.mass_free_fall_started[mass.mass_id] = None
             self.mass_free_fall_previous_y[mass.mass_id] = body.position.y
+            self.mass_wild_motion_started[mass.mass_id] = None
 
         self._build_joint_constraints()
         self._build_brace_constraints()
@@ -253,6 +256,11 @@ class TestSimulation:
                     self.space.add(pin)
 
     def set_table_motion(self) -> None:
+        if self.table_motion_stopped:
+            center_y = -10
+            self.table_body.position = (CANVAS_WIDTH / 2, center_y)
+            self.table_body.velocity = (0, 0)
+            return
         displacement_px, velocity_ftps = table_motion(self.elapsed, self.amplitude, self.frequency)
         center_y = -10
         self.table_body.position = (CANVAS_WIDTH / 2 + displacement_px, center_y)
@@ -280,6 +288,7 @@ class TestSimulation:
                     self.result = "success"
                     self.result_time = self.duration_seconds
                 self.duration_reached = True
+                self.table_motion_stopped = True
             self.accumulator -= self.fixed_step
 
     def _update_joint_stress(self) -> None:
@@ -369,35 +378,47 @@ class TestSimulation:
         if not self.design.masses:
             return False
 
-        gravity_py = GRAVITY_MODES[self.gravity_name] * PIXELS_PER_FOOT
-        free_falling_count = 0
-
         for mass in self.design.masses:
             body = self.mass_bodies[mass.mass_id]
-            previous_y = self.mass_free_fall_previous_y[mass.mass_id]
-            downward_displacement = previous_y - body.position.y
-            downward_velocity = max(0.0, -body.velocity.y)
-            is_supported = mass.mass_id in self.mass_supported
+            mass_canvas = mass
+            cx = body.position.x + CANVAS_WIDTH / 2
+            cy = TABLE_TOP_Y - body.position.y
+            mass_left = cx - mass.width / 2
+            mass_right = cx + mass.width / 2
+            mass_bottom = cy + mass.height / 2
 
-            falls_freely = (
-                not is_supported
-                and downward_velocity > 0.70 * gravity_py
-                and downward_displacement > 0.75
+            supported = False
+            for beam in (member for member in self.design.members if member.kind == "beam"):
+                beam_left = min(beam.x1, beam.x2)
+                beam_right = max(beam.x1, beam.x2)
+                beam_y = beam.y1
+                vertical_aligned = abs(mass_bottom - beam_y) < 30
+                within_span = mass_left >= beam_left - 8 and mass_right <= beam_right + 8
+                if vertical_aligned and within_span:
+                    supported = True
+                    break
+
+            speed = (body.velocity.x * body.velocity.x + body.velocity.y * body.velocity.y) ** 0.5
+            angular_speed = abs(body.angular_velocity)
+            outside_support = not supported
+            wildly_moving = (
+                outside_support
+                and (
+                    speed > 220
+                    and (angular_speed > 0.8 or abs(body.velocity.y) > 180)
+                )
             )
-            if falls_freely:
-                if self.mass_free_fall_started[mass.mass_id] is None:
-                    self.mass_free_fall_started[mass.mass_id] = self.elapsed
+
+            if wildly_moving:
+                if self.mass_wild_motion_started[mass.mass_id] is None:
+                    self.mass_wild_motion_started[mass.mass_id] = self.elapsed
             else:
-                self.mass_free_fall_started[mass.mass_id] = None
+                self.mass_wild_motion_started[mass.mass_id] = None
 
-            started = self.mass_free_fall_started[mass.mass_id]
-            if started is not None and self.elapsed - started >= 0.20:
-                free_falling_count += 1
-
-            self.mass_free_fall_previous_y[mass.mass_id] = body.position.y
-
-        total_count = len(self.design.masses)
-        return free_falling_count >= max(1, (2 * total_count + 2) // 3)
+            started = self.mass_wild_motion_started[mass.mass_id]
+            if started is not None and self.elapsed - started >= 0.35:
+                return True
+        return False
 
     def _keep_bodies_above_table(self) -> None:
         table_top_physics_y = 0.0

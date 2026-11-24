@@ -139,6 +139,19 @@
  - Implemented per-mass sustained downward velocity/displacement timers.
  - Added tests for whole-mass free fall and one-mass-only detachment.
 
+ ### Wild Floor-Mass Collapse Criterion
+
+ - Joint and fatigue failures alone do not fail the run.
+ - A loose floor mass fails when it flails with sustained horizontal/vertical speed or falls outside beam support.
+ - Added a 0.35-second sustained-motion timer and preserved normal beam-carried mass behavior.
+
+ ### Failure Through Duration End
+
+ - Failure now freezes outcome/result timing but continues configured shaking and physics through the remaining duration.
+ - Finite duration end stops the shake table at zero displacement/velocity.
+ - Gravity and Pymunk physics remain active after table stop so collapse debris can settle.
+ - Corrected app completion state so Pymunk still steps after table stop until End Test.
+
  ### Brace Ghost Visibility
 
  - Added prominent brace ghost anchors before and after first click.

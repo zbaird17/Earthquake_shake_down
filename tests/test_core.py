@@ -155,6 +155,11 @@ class CoreTests(unittest.TestCase):
         simulation.step(1.1)
         self.assertEqual(simulation.result, "success")
         self.assertEqual(simulation.result_time, 1.0)
+        self.assertTrue(simulation.duration_reached)
+        self.assertTrue(simulation.table_motion_stopped)
+        simulation.step(0.1)
+        self.assertEqual(simulation.table_body.velocity.x, 0)
+        self.assertAlmostEqual(simulation.table_body.position.x, 300)
 
     def test_indefinite_duration_does_not_auto_pass(self):
         design = DesignState()
@@ -240,29 +245,26 @@ class CoreTests(unittest.TestCase):
             joint.failed = True
         self.assertFalse(simulation._structural_collapse_detected())
 
-    def test_whole_structure_free_fall_counts_as_collapse(self):
+    def test_wild_loose_floor_mass_counts_as_collapse(self):
         design = DesignState()
         design.load_starter_tower()
         simulation = TestSimulation(design, "Earth", 0, 3)
         for mass_id in list(simulation.mass_supported):
             simulation.mass_supported.remove(mass_id)
             body = simulation.mass_bodies[mass_id]
-            body.velocity = (0, -700)
-            simulation.mass_free_fall_started[mass_id] = simulation.elapsed - 0.25
-            simulation.mass_free_fall_previous_y[mass_id] = body.position.y + 2
+            body.velocity = (300, -300)
+            body.angular_velocity = 2.0
+            simulation.mass_wild_motion_started[mass_id] = simulation.elapsed - 0.40
+            body.position = (-40, 100)
         self.assertTrue(simulation._structural_collapse_detected())
 
-    def test_one_detached_mass_does_not_count_as_collapse(self):
+    def test_supported_masses_with_normal_motion_do_not_collapse(self):
         design = DesignState()
         design.load_starter_tower()
         simulation = TestSimulation(design, "Earth", 0, 3)
-        mass_id = next(iter(simulation.mass_supported), None)
-        if mass_id is not None:
-            simulation.mass_supported.remove(mass_id)
-            body = simulation.mass_bodies[mass_id]
-            body.velocity = (0, -700)
-            simulation.mass_free_fall_started[mass_id] = simulation.elapsed - 0.25
-            simulation.mass_free_fall_previous_y[mass_id] = body.position.y + 2
+        for body in simulation.mass_bodies.values():
+            body.velocity = (20, -20)
+            body.angular_velocity = 0.1
         self.assertFalse(simulation._structural_collapse_detected())
 
     def test_one_failed_joint_is_not_structural_collapse(self):
