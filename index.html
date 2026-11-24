@@ -1,0 +1,3078 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Earthquake Shake Down</title>
+  <style>
+    :root {
+      --earth-bg: #eef7ff;
+      --earth-panel: #ffffff;
+      --earth-accent: #2563eb;
+      --ink: #17233b;
+      --muted: #64748b;
+      --line: #d7e1ed;
+      --normal: #22c55e;
+      --elevated: #facc15;
+      --failed: #ef4444;
+      --app-bg: var(--earth-bg);
+      --shadow: 0 12px 30px rgba(42, 74, 112, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: Inter, ui-rounded, "Segoe UI", system-ui, sans-serif;
+      background: var(--app-bg);
+      transition: background 180ms ease;
+    }
+
+    button, input { font: inherit; }
+    .tool, .button, .gravity-btn, .collapse-btn { touch-action: manipulation; }
+
+    .app {
+      min-height: 100vh;
+      padding: 18px;
+    }
+
+    .topbar {
+      max-width: 1180px;
+      margin: 0 auto 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border: 3px solid var(--ink);
+      border-radius: 14px;
+      background: #fff;
+      box-shadow: 4px 4px 0 #ffb703;
+      font-size: 23px;
+      transform: rotate(-2deg);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(20px, 3vw, 30px);
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .workspace {
+      max-width: 1180px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 86px minmax(320px, 600px) minmax(250px, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--earth-panel);
+      box-shadow: var(--shadow);
+    }
+
+    .toolbox {
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .tool {
+      min-height: 78px;
+      padding: 8px 4px;
+      border: 2px solid transparent;
+      border-radius: 12px;
+      background: #f7fafc;
+      color: var(--ink);
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .tool:hover, .tool:focus-visible {
+      border-color: #93c5fd;
+      outline: none;
+      transform: translateY(-1px);
+    }
+
+    .tool.active {
+      border-color: var(--earth-accent);
+      background: #eaf2ff;
+    }
+
+    .tool:disabled, .button:disabled, .gravity-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .tool-icon {
+      display: block;
+      height: 35px;
+      margin-bottom: 4px;
+      font-size: 29px;
+      line-height: 35px;
+    }
+
+    .tool-name {
+      display: block;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .tool-price {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .canvas-column {
+      min-width: 0;
+    }
+
+    .canvas-shell {
+      overflow: hidden;
+      width: 100%;
+      max-width: 600px;
+      height: min(500px, calc(100vw - 36px));
+      max-height: 500px;
+      min-height: 360px;
+      position: relative;
+      border: 0;
+      outline: 2px solid #a9bdd3;
+      outline-offset: 0;
+      border-radius: 18px;
+      background:
+        linear-gradient(rgba(95, 139, 180, 0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(95, 139, 180, 0.14) 1px, transparent 1px),
+        #fafdff;
+      background-size: 20px 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .canvas-shell::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 20px;
+      background: transparent;
+      border-top: 0;
+      z-index: 1;
+    }
+
+    .canvas-label {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 5;
+      padding: 6px 9px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.92);
+      color: var(--muted);
+      border: 1px solid var(--line);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .tower {
+      position: absolute;
+      left: 50%;
+      bottom: 42px;
+      width: 280px;
+      height: 270px;
+      transform: translateX(-50%);
+      z-index: 2;
+    }
+
+    .tower svg { width: 100%; height: 100%; overflow: visible; }
+    .design-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+    }
+
+    .placed-element {
+      position: absolute;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+      z-index: 2;
+    }
+
+    .placed-element:active { cursor: grabbing; }
+
+    .placed-element.selected {
+      filter: drop-shadow(0 0 5px #2563eb);
+      outline: 2px dashed #2563eb;
+      outline-offset: 3px;
+    }
+
+    .placed-element.column {
+      width: 10px;
+      height: 60px;
+      z-index: 3;
+      border: 2px solid #17233b;
+      border-radius: 3px;
+      background: #6ea3cf;
+    }
+
+    .placed-element.beam {
+      width: 60px;
+      height: 10px;
+      z-index: 3;
+      border: 2px solid #17233b;
+      border-radius: 3px;
+      background: #91b5d6;
+    }
+
+    .placed-element.brace {
+      width: 72px;
+      height: 8px;
+      border: 2px solid #17233b;
+      border-radius: 4px;
+      background: #b6c9dc;
+      transform-origin: 50% 50%;
+      z-index: 5;
+    }
+
+    .placed-element.brace.right { transform: rotate(45deg); }
+    .placed-element.brace.left { transform: rotate(-45deg); }
+
+    .joint-edit-marker {
+      position: absolute;
+      z-index: 18;
+      width: 18px;
+      height: 18px;
+      padding: 0;
+      transform: translate(-50%, -50%);
+      border: 2px solid #475569;
+      border-radius: 50%;
+      background: #fff;
+      color: #334155;
+      cursor: pointer;
+      font-size: 9px;
+      font-weight: 900;
+      line-height: 14px;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.3);
+      touch-action: manipulation;
+    }
+
+    .joint-edit-marker.moment {
+      border-color: #b45309;
+      background: #fbbf24;
+      color: #451a03;
+    }
+
+    .joint-edit-marker:focus-visible {
+      outline: 3px solid #2563eb;
+      outline-offset: 2px;
+    }
+
+    .placed-element.floor-mass {
+      width: 40px;
+      height: 20px;
+      border: 3px solid #17233b;
+      border-radius: 7px;
+      background: #ffb703;
+      box-shadow: 3px 3px 0 rgba(23, 35, 59, 0.18);
+      z-index: 1;
+    }
+
+    .placement-preview {
+      position: absolute;
+      z-index: 7;
+      border: 2px dashed #2563eb;
+      background: rgba(37, 99, 235, 0.14);
+      pointer-events: none;
+      opacity: 0.92;
+    }
+
+    .placement-preview.column {
+      width: 10px;
+      height: 60px;
+      border-radius: 3px;
+    }
+
+    .placement-preview.beam {
+      width: 60px;
+      height: 10px;
+      border-radius: 3px;
+    }
+
+    .placement-preview.brace {
+      width: 72px;
+      height: 8px;
+      border-radius: 4px;
+      transform: rotate(-45deg);
+    }
+
+    .placement-preview.floor-mass {
+      width: 40px;
+      height: 20px;
+      border-radius: 7px;
+    }
+
+    .mass-resize {
+      position: absolute;
+      right: -8px;
+      bottom: -8px;
+      z-index: 12;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #17233b;
+      border-radius: 4px;
+      background: #fff;
+      cursor: nwse-resize;
+      touch-action: none;
+    }
+
+    .segment-preview {
+      position: absolute;
+      z-index: 8;
+      height: 8px;
+      border: 2px dashed #2563eb;
+      border-radius: 4px;
+      background: rgba(37, 99, 235, 0.12);
+      pointer-events: none;
+      transform-origin: 0 50%;
+    }
+
+    .segment-preview.column {
+      width: 10px;
+      height: 8px;
+      transform-origin: 50% 0;
+    }
+
+    .segment-length {
+      position: absolute;
+      z-index: 9;
+      padding: 2px 5px;
+      border-radius: 6px;
+      background: rgba(23, 35, 59, 0.88);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .endpoint {
+      position: absolute;
+      z-index: 10;
+      width: 14px;
+      height: 14px;
+      padding: 0;
+      box-sizing: border-box;
+      border: 2px solid #17233b;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(23, 35, 59, 0.25);
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .empty-hint {
+      position: absolute;
+      left: 50%;
+      top: 46%;
+      z-index: 1;
+      width: 260px;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: #71849a;
+      font-size: 13px;
+      pointer-events: none;
+    }
+
+    .member { stroke: #2b4263; stroke-width: 8; stroke-linecap: round; }
+    .brace { stroke: #8aa0b8; stroke-width: 5; stroke-linecap: round; }
+    .mass { fill: #ffb703; stroke: #17233b; stroke-width: 4; }
+    .joint-normal { fill: var(--normal); stroke: #17233b; stroke-width: 2; }
+    .joint-elevated { fill: var(--elevated); stroke: #17233b; stroke-width: 2; }
+
+    .joint-stress-indicator {
+      position: absolute;
+      z-index: 6;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #17233b;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      box-shadow: 0 1px 3px rgba(23, 35, 59, 0.25);
+    }
+
+    .joint-stress-indicator.normal { background: var(--normal); }
+    .joint-stress-indicator.elevated { background: var(--elevated); }
+    .joint-stress-indicator.failed { background: var(--failed); animation: joint-failure-pulse 500ms ease-in-out infinite alternate; }
+    .joint-stress-indicator.moment { outline: 2px solid #b45309; outline-offset: 2px; }
+
+    @keyframes joint-failure-pulse {
+      from { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.2); }
+      to { box-shadow: 0 0 0 7px rgba(239, 68, 68, 0.35); }
+    }
+
+    .shake-table {
+      position: absolute;
+      left: 50%;
+      bottom: 0;
+      width: 360px;
+      height: 20px;
+      z-index: 4;
+      transform: translateX(-50%);
+      border: 3px solid #26384a;
+      border-radius: 7px 7px 3px 3px;
+      background: #a8bad0;
+    }
+
+    .wave-legend {
+      position: absolute;
+      right: 10px;
+      top: 12px;
+      bottom: auto;
+      z-index: 6;
+      display: flex;
+      gap: 10px;
+      padding: 7px 9px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.92);
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .legend-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      margin-right: 4px;
+      border-radius: 50%;
+    }
+
+    .sidebar {
+      overflow: hidden;
+      max-height: 620px;
+      transition: max-height 180ms ease;
+    }
+
+    .sidebar.collapsed {
+      max-height: 52px;
+    }
+
+    .sidebar-header {
+      height: 52px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .sidebar-header h2 {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .sidebar.collapsed .sidebar-header { border-bottom: 0; }
+
+    .collapse-btn {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #f8fafc;
+      color: var(--ink);
+      cursor: pointer;
+    }
+
+    .sidebar-body {
+      max-height: 568px;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    .sidebar.collapsed .sidebar-body { display: none; }
+
+    .section {
+      padding: 10px 0 12px;
+      border-bottom: 1px solid #edf2f7;
+    }
+
+    .section:last-child { border-bottom: 0; }
+
+    .section-title {
+      margin: 0 0 9px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    .helper-text {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .control-row {
+      display: grid;
+      grid-template-columns: 72px 1fr 74px;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .control-row label {
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--earth-accent);
+    }
+
+    .number-box {
+      width: 74px;
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 5px 7px;
+      color: var(--ink);
+      background: #fff;
+    }
+
+    .gravity {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .gravity-btn {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #f8fafc;
+      color: var(--ink);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .gravity-btn.active {
+      border-color: var(--earth-accent);
+      background: #eaf2ff;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .metric {
+      min-height: 70px;
+      padding: 9px;
+      border: 1px solid #e5edf5;
+      border-radius: 10px;
+      background: #f8fafc;
+    }
+
+    .metric-wide { grid-column: 1 / -1; }
+
+    .metric-label {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .metric-value {
+      display: block;
+      margin-top: 5px;
+      font-size: 20px;
+      font-weight: 900;
+    }
+
+    .readouts.panel {
+      margin-top: 12px;
+      padding: 12px;
+    }
+
+    .readouts .metric-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .status-line {
+      margin-top: 8px;
+      padding: 8px 9px;
+      border-radius: 9px;
+      background: #edf6ff;
+      color: #1e4f87;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .status-line.result-success {
+      border: 1px solid #86efac;
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .status-line.result-failure {
+      border: 1px solid #fca5a5;
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .button {
+      min-height: 38px;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .button:hover, .button:focus-visible {
+      border-color: #93c5fd;
+      outline: none;
+    }
+
+    .button.primary {
+      border-color: #1d4ed8;
+      background: var(--earth-accent);
+      color: #fff;
+    }
+
+    .button.danger {
+      border-color: #fecaca;
+      background: #fff1f2;
+      color: #be123c;
+    }
+
+    .button.result-success:disabled {
+      border-color: #15803d;
+      background: #16a34a;
+      color: #fff;
+      opacity: 1;
+    }
+
+    .button.result-failure:disabled {
+      border-color: #b91c1c;
+      background: #dc2626;
+      color: #fff;
+      opacity: 1;
+    }
+
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .action-grid .wide { grid-column: 1 / -1; }
+
+    @media (max-width: 980px) {
+      .workspace {
+        grid-template-columns: 74px minmax(220px, 1fr) minmax(210px, 260px);
+        gap: 10px;
+        justify-content: center;
+      }
+
+      .canvas-column {
+        width: 100%;
+        max-width: 600px;
+        justify-self: stretch;
+      }
+
+      .sidebar {
+        grid-column: auto;
+        max-height: 620px;
+      }
+
+      .section {
+        border: 0;
+        border-bottom: 1px solid #edf2f7;
+        border-radius: 0;
+        padding: 10px 0 12px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .app { padding: 10px; }
+      .topbar { align-items: flex-start; }
+
+      .workspace {
+        grid-template-columns: 1fr;
+        justify-items: center;
+      }
+
+      .toolbox {
+        grid-column: 1;
+        width: min(100%, 600px);
+        grid-template-columns: repeat(4, 1fr);
+        order: 1;
+      }
+
+      .tool {
+        min-height: 68px;
+      }
+
+      .canvas-column {
+        grid-column: 1;
+        width: 100%;
+        max-width: 600px;
+        order: 2;
+      }
+
+      .canvas-shell {
+        min-height: 280px;
+        height: min(500px, calc((100vw - 20px) * 0.8333));
+        max-height: 500px;
+        margin: 0 auto;
+      }
+
+      .sidebar {
+        grid-column: 1;
+        order: 3;
+      }
+
+      .sidebar-body {
+        display: block;
+      }
+
+      .metric-grid { grid-template-columns: 1fr 1fr; }
+      .readouts .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+      .section {
+        border: 0;
+        border-bottom: 1px solid #edf2f7;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">〽</div>
+        <div>
+          <h1>Earthquake Shake Down</h1>
+          <div class="subtitle">2D structural dynamics lab</div>
+        </div>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="toolbox panel" aria-label="Structural elements">
+        <button class="tool active" type="button" data-tool="Column">
+          <span class="tool-icon" aria-hidden="true">▥</span>
+          <span class="tool-name">Column</span>
+          <span class="tool-price">$90/ft</span>
+        </button>
+        <button class="tool" type="button" data-tool="Beam">
+          <span class="tool-icon" aria-hidden="true">━</span>
+          <span class="tool-name">Beam</span>
+          <span class="tool-price">$70/ft</span>
+        </button>
+        <button class="tool" type="button" data-tool="Brace">
+          <span class="tool-icon" aria-hidden="true">╱</span>
+          <span class="tool-name">Brace</span>
+          <span class="tool-price">$40/ft</span>
+        </button>
+        <button class="tool" type="button" data-tool="Floor mass">
+          <span class="tool-icon" aria-hidden="true">▰</span>
+          <span class="tool-name">Mass</span>
+        </button>
+      </aside>
+
+      <section class="canvas-column" aria-label="Simulation">
+        <div class="canvas-shell" id="canvas">
+          <div class="canvas-label">1 ft grid · Design mode</div>
+          <div class="empty-hint" id="emptyHint">Choose an element, then click the grid to place it</div>
+          <div class="design-layer" id="designLayer" aria-label="Structure placement area"></div>
+          <div class="shake-table" aria-label="Placeholder shake table"></div>
+          <div class="wave-legend" aria-label="Joint stress legend">
+            <span><i class="legend-dot" style="background: var(--normal)"></i>Normal</span>
+            <span><i class="legend-dot" style="background: var(--elevated)"></i>Elevated</span>
+            <span><i class="legend-dot" style="background: var(--failed)"></i>Failed</span>
+          </div>
+        </div>
+        <section class="readouts panel" aria-label="Test readouts">
+          <h2 class="section-title">Readouts</h2>
+          <div class="metric-grid">
+            <div class="metric">
+              <span class="metric-label">Total cost</span>
+              <span class="metric-value" id="totalCostValue">$0</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Elapsed</span>
+              <span class="metric-value" id="elapsedValue">0.00 s</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Peak accel.</span>
+              <span class="metric-value" id="peakAccelValue">0.00 g</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Earth high score</span>
+              <span class="metric-value" id="highScoreEarth">0.00 g</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Mars high score</span>
+              <span class="metric-value" id="highScoreMars">0.00 g</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Moon high score</span>
+              <span class="metric-value" id="highScoreMoon">0.00 g</span>
+            </div>
+          </div>
+          <p class="helper-text">Joint badges: P = pinned; M = moment-frame (+$600 per node).</p>
+          <div class="status-line" id="statusLine">Design mode · Ready to test</div>
+        </section>
+      </section>
+
+      <aside class="sidebar panel" id="sidebar">
+        <div class="sidebar-header">
+          <h2>Test controls</h2>
+          <button class="collapse-btn" id="collapseBtn" type="button" aria-expanded="true" aria-label="Collapse sidebar">−</button>
+        </div>
+        <div class="sidebar-body">
+          <section class="section">
+            <h3 class="section-title">Shaking</h3>
+            <div class="control-row">
+              <label for="amplitudeRange">Amplitude (in)</label>
+              <input id="amplitudeRange" type="range" min="0" max="12" step="0.1" value="4">
+              <input id="amplitudeNumber" class="number-box" type="number" min="0" max="12" step="0.1" value="4" aria-label="Amplitude in inches">
+            </div>
+            <div class="control-row">
+              <label for="frequencyRange">Frequency (Hz)</label>
+              <input id="frequencyRange" type="range" min="0.1" max="10" step="0.1" value="3">
+              <input id="frequencyNumber" class="number-box" type="number" min="0.1" max="10" step="0.1" value="3" aria-label="Frequency in hertz">
+            </div>
+          </section>
+
+          <section class="section">
+            <h3 class="section-title">Gravity</h3>
+            <div class="gravity" aria-label="Gravity mode">
+              <button class="gravity-btn active" type="button" data-gravity="earth">Earth<br>32.2</button>
+              <button class="gravity-btn" type="button" data-gravity="mars">Mars<br>12.21</button>
+              <button class="gravity-btn" type="button" data-gravity="moon">Moon<br>5.33</button>
+            </div>
+          </section>
+
+          <section class="section">
+            <h3 class="section-title">Simulation</h3>
+            <div class="action-grid">
+              <button class="button primary" type="button" id="startBtn">Start test</button>
+              <button class="button" type="button" id="stopBtn" disabled>Stop test</button>
+              <button class="button wide" type="button" id="starterBtn">Load starter tower</button>
+              <button class="button danger wide" type="button" id="clearBtn">Clear structure</button>
+            </div>
+          </section>
+
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.20.0/matter.min.js"></script>
+  <script>
+    const app = document.getElementById("app");
+    const sidebar = document.getElementById("sidebar");
+    const collapseBtn = document.getElementById("collapseBtn");
+    const statusLine = document.getElementById("statusLine");
+    const canvas = document.getElementById("canvas");
+    const designLayer = document.getElementById("designLayer");
+    const emptyHint = document.getElementById("emptyHint");
+    const shakeTable = document.querySelector(".shake-table");
+    const GRID = 20;
+    const STANDARD_GRAVITY_FTPS2 = 32.2;
+    const GRAVITY_ACCELERATION_FTPS2 = { earth: 32.2, mars: 12.21, moon: 5.33 };
+    const COLLISION_CATEGORY_STRUCTURE = 0x0001;
+    const COLLISION_CATEGORY_MASS = 0x0002;
+    const COLLISION_CATEGORY_TABLE = 0x0004;
+    const HIGH_SCORE_STORAGE_PREFIX = "earthquakeShakeDown.highScoreStandardG.";
+    const LEGACY_HIGH_SCORE_STORAGE_PREFIX = "earthquakeShakeDown.highScoreG.";
+    function loadHighScore(mode) {
+      try {
+        const currentValue = window.localStorage.getItem(HIGH_SCORE_STORAGE_PREFIX + mode);
+        const currentScore = Number(currentValue);
+        if (currentValue !== null && Number.isFinite(currentScore) && currentScore > 0) return currentScore;
+        const legacyValue = window.localStorage.getItem(LEGACY_HIGH_SCORE_STORAGE_PREFIX + mode);
+        const legacyScore = Number(legacyValue);
+        if (legacyValue === null || !Number.isFinite(legacyScore) || legacyScore <= 0) return 0;
+        const standardScore = legacyScore * GRAVITY_ACCELERATION_FTPS2[mode] / STANDARD_GRAVITY_FTPS2;
+        try {
+          window.localStorage.setItem(HIGH_SCORE_STORAGE_PREFIX + mode, String(standardScore));
+        } catch (error) {
+          // Keep the converted score available for this session if migration cannot be saved.
+        }
+        return standardScore;
+      } catch (error) {
+        return 0;
+      }
+    }
+    const highScores = {
+      earth: loadHighScore("earth"),
+      mars: loadHighScore("mars"),
+      moon: loadHighScore("moon")
+    };
+    const highScoreDisplays = {
+      earth: document.getElementById("highScoreEarth"),
+      mars: document.getElementById("highScoreMars"),
+      moon: document.getElementById("highScoreMoon")
+    };
+    Object.entries(highScores).forEach(([mode, score]) => {
+      highScoreDisplays[mode].textContent = score.toFixed(2) + " g";
+    });
+
+    function resetHighScores() {
+      Object.keys(highScores).forEach((mode) => {
+        highScores[mode] = 0;
+        highScoreDisplays[mode].textContent = "0.00 g";
+        try {
+          window.localStorage.removeItem(HIGH_SCORE_STORAGE_PREFIX + mode);
+          window.localStorage.removeItem(LEGACY_HIGH_SCORE_STORAGE_PREFIX + mode);
+        } catch (error) {
+          // The in-memory scores are still reset if browser storage is unavailable.
+        }
+      });
+    }
+
+    function recordHighScore(scoreG) {
+      if (!Number.isFinite(scoreG) || scoreG <= highScores[activeGravityMode]) return;
+      highScores[activeGravityMode] = scoreG;
+      highScoreDisplays[activeGravityMode].textContent = scoreG.toFixed(2) + " g";
+      try {
+        window.localStorage.setItem(HIGH_SCORE_STORAGE_PREFIX + activeGravityMode, String(scoreG));
+      } catch (error) {
+        // Keep the current-session score visible if browser storage is unavailable.
+      }
+    }
+    let selectedTool = "Column";
+    let selectedElement = null;
+    let isTesting = false;
+    let activeGravityMode = "earth";
+    let braceDirection = "right";
+    let pendingSegment = null;
+    let segmentPreview = null;
+    let placementGhost = null;
+    const momentJointKeys = new Set();
+    const MOMENT_CONNECTION_COST = 600;
+
+    function jointKey(x, y) {
+      return snap(x) + "," + snap(y);
+    }
+
+    function getConnectedJointNodes() {
+      const nodes = new Map();
+      const elements = [...designLayer.querySelectorAll(".placed-element")];
+      const addMemberAtPoint = (point, element) => {
+        if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return;
+        const key = jointKey(point.x, point.y);
+        if (!nodes.has(key)) nodes.set(key, { x: snap(point.x), y: snap(point.y), members: new Set() });
+        nodes.get(key).members.add(element);
+      };
+
+      elements.forEach((element) => {
+        const type = element.dataset.tool;
+        if (type !== "Column" && type !== "Beam" && type !== "Brace") return;
+        [
+          { x: Number(element.dataset.startX), y: Number(element.dataset.startY) },
+          { x: Number(element.dataset.endX), y: Number(element.dataset.endY) }
+        ].forEach((point) => addMemberAtPoint(point, element));
+      });
+
+      const hostMembers = elements.filter((element) =>
+        element.dataset.tool === "Column" || element.dataset.tool === "Beam"
+      );
+      elements.filter((element) => element.dataset.tool === "Brace").forEach((brace) => {
+        [
+          { x: Number(brace.dataset.startX), y: Number(brace.dataset.startY) },
+          { x: Number(brace.dataset.endX), y: Number(brace.dataset.endY) }
+        ].forEach((point) => {
+          hostMembers.forEach((host) => {
+            const start = { x: Number(host.dataset.startX), y: Number(host.dataset.startY) };
+            const end = { x: Number(host.dataset.endX), y: Number(host.dataset.endY) };
+            const dx = end.x - start.x;
+            const dy = end.y - start.y;
+            const lengthSquared = dx * dx + dy * dy;
+            if (!lengthSquared) return;
+            const t = ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared;
+            if (t < 0 || t > 1) return;
+            const projection = { x: start.x + t * dx, y: start.y + t * dy };
+            if (Math.hypot(projection.x - point.x, projection.y - point.y) <= 1) {
+              addMemberAtPoint(point, host);
+            }
+          });
+        });
+      });
+      const tableTop = getTableBoundary();
+      return [...nodes.entries()]
+        .filter(([, node]) => node.members.size >= 2 || node.y >= tableTop - 1)
+        .map(([key, node]) => ({ key, x: node.x, y: node.y }));
+    }
+
+    function renderJointEditMarkers() {
+      designLayer.querySelectorAll(".joint-edit-marker").forEach((marker) => marker.remove());
+      if (isTesting) return;
+      const nodes = getConnectedJointNodes();
+      const currentKeys = new Set(nodes.map((node) => node.key));
+      momentJointKeys.forEach((key) => {
+        if (!currentKeys.has(key)) momentJointKeys.delete(key);
+      });
+      nodes.forEach((node) => {
+        const isMoment = momentJointKeys.has(node.key);
+        const marker = document.createElement("button");
+        marker.type = "button";
+        marker.className = "joint-edit-marker" + (isMoment ? " moment" : "");
+        marker.textContent = isMoment ? "M" : "P";
+        marker.style.left = Math.max(9, Math.min(designLayer.clientWidth - 9, node.x + 12)) + "px";
+        marker.style.top = Math.max(9, node.y - 12) + "px";
+        marker.setAttribute(
+          "aria-label",
+          (isMoment ? "Moment-frame" : "Pinned") + " joint at " + node.x + ", " + node.y + ". Click to toggle."
+        );
+        marker.title = (isMoment ? "Moment-frame (+$600)" : "Pinned (no connection premium)") + " · click to toggle";
+        marker.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        });
+        marker.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (momentJointKeys.has(node.key)) momentJointKeys.delete(node.key);
+          else momentJointKeys.add(node.key);
+          updateTotalCost();
+          statusLine.textContent = momentJointKeys.has(node.key)
+            ? "Moment-frame connection set at (" + node.x + ", " + node.y + ")"
+            : "Pinned connection set at (" + node.x + ", " + node.y + ")";
+        });
+        designLayer.appendChild(marker);
+      });
+    }
+
+    const elementSizes = {
+      "Column": { width: 10, height: 60 },
+      "Beam": { width: 60, height: 10 },
+      "Brace": { width: 72, height: 8 },
+      "Floor mass": { width: 50, height: 24 }
+    };
+
+    function snap(value) {
+      return Math.round(value / GRID) * GRID;
+    }
+
+    function alignEndpointHandles(element) {
+      if (!element) return;
+      const layerRect = designLayer.getBoundingClientRect();
+      const startX = Number(element.dataset.startX);
+      const startY = Number(element.dataset.startY);
+      const endX = Number(element.dataset.endX);
+      const endY = Number(element.dataset.endY);
+      const type = element.dataset.tool;
+      const startHandle = element.querySelector(".endpoint.start");
+      const endHandle = element.querySelector(".endpoint.end");
+
+      [[startHandle, startX, startY], [endHandle, endX, endY]].forEach(([handle, nodeX, nodeY]) => {
+        if (!handle || !Number.isFinite(nodeX) || !Number.isFinite(nodeY)) return;
+        const rect = handle.getBoundingClientRect();
+        const handleX = rect.left + rect.width / 2;
+        const handleY = rect.top + rect.height / 2;
+        let dx = layerRect.left + nodeX - handleX;
+        let dy = layerRect.top + nodeY - handleY;
+
+        if (type === "Brace") {
+          const angleText = element.style.transform.match(/rotate\(([-0-9.]+)deg\)/);
+          const angle = angleText ? Number(angleText[1]) * Math.PI / 180 : 0;
+          const localDx = dx * Math.cos(angle) + dy * Math.sin(angle);
+          const localDy = -dx * Math.sin(angle) + dy * Math.cos(angle);
+          dx = localDx;
+          dy = localDy;
+        }
+
+        const left = parseFloat(handle.style.left) || 0;
+        const top = parseFloat(handle.style.top) || 0;
+        handle.style.left = (left + dx) + "px";
+        handle.style.top = (top + dy) + "px";
+      });
+    }
+
+    function alignGridMember(type, startX, startY, endX, endY) {
+      startX = snap(startX);
+      startY = snap(startY);
+      endX = snap(endX);
+      endY = snap(endY);
+      if (type === "Column") endX = startX;
+      if (type === "Beam") endY = startY;
+      return { startX, startY, endX, endY };
+    }
+
+    function getUprightBraceGeometry(start, end) {
+      if (start.y < end.y) return { start, end };
+      if (end.y < start.y) return { start: end, end: start };
+      if (start.x <= end.x) return { start, end };
+      return { start: end, end: start };
+    }
+
+    function keepBraceLabelUpright(element, angle) {
+      const label = element.querySelector(".segment-length");
+      if (!label) return;
+      label.style.transform = "translateX(-50%) rotate(" + (-angle) + "deg)";
+      label.style.transformOrigin = "50% 50%";
+    }
+
+    function snapPlacementPoint(x, y) {
+      const tableTop = getTableBoundary();
+      return {
+        x: Math.max(0, Math.min(designLayer.clientWidth, snap(x))),
+        y: Math.max(0, Math.min(tableTop, snap(y)))
+      };
+    }
+
+    function getTableBoundary() {
+      const canvasRect = canvas.getBoundingClientRect();
+      const tableRect = shakeTable.getBoundingClientRect();
+      const layerRect = designLayer.getBoundingClientRect();
+      return snap(tableRect.top - layerRect.top);
+    }
+
+    function alignShakeTable() {
+      if (!shakeTable || !canvas) return;
+      const desiredHeight = snap(Math.max(280, Math.min(500, canvas.clientWidth * 5 / 6)));
+      canvas.style.height = desiredHeight + "px";
+      designLayer.style.bottom = "0";
+      const tableWidth = Math.min(360, snap(canvas.clientWidth));
+      const left = snap((canvas.clientWidth - tableWidth) / 2);
+      shakeTable.style.width = tableWidth + "px";
+      shakeTable.style.left = left + "px";
+      shakeTable.style.transform = "none";
+      shakeTable.style.bottom = "20px";
+    }
+
+    alignShakeTable();
+    if ("ResizeObserver" in window) {
+      new ResizeObserver(alignShakeTable).observe(canvas);
+    }
+
+    function updateEmptyHint() {
+      emptyHint.hidden = designLayer.querySelector(".placed-element") !== null;
+      updateTotalCost();
+    }
+
+    function updateTotalCost() {
+      let total = 0;
+      designLayer.querySelectorAll(".placed-element").forEach((element) => {
+        const type = element.dataset.tool;
+        if (type === "Column" || type === "Beam") {
+          const startX = Number(element.dataset.startX);
+          const startY = Number(element.dataset.startY);
+          const endX = Number(element.dataset.endX);
+          const endY = Number(element.dataset.endY);
+          if (Number.isFinite(startX) && Number.isFinite(endX) &&
+              Number.isFinite(startY) && Number.isFinite(endY)) {
+            const lengthFeet = Math.hypot(endX - startX, endY - startY) / GRID;
+            total += lengthFeet * (type === "Column" ? 90 : 70);
+          }
+        } else if (type === "Brace") {
+          const dx = Number(element.dataset.endX) - Number(element.dataset.startX);
+          const dy = Number(element.dataset.endY) - Number(element.dataset.startY);
+          if (Number.isFinite(dx) && Number.isFinite(dy)) {
+            total += Math.hypot(dx, dy) / GRID * 40;
+          }
+        }
+      });
+      const connectedNodes = getConnectedJointNodes();
+      const connectedKeys = new Set(connectedNodes.map((node) => node.key));
+      momentJointKeys.forEach((key) => {
+        if (!connectedKeys.has(key)) momentJointKeys.delete(key);
+      });
+      total += connectedNodes.filter((node) => momentJointKeys.has(node.key)).length * MOMENT_CONNECTION_COST;
+      const totalCostValue = document.getElementById("totalCostValue");
+      if (totalCostValue) totalCostValue.textContent = "$" + Math.round(total).toLocaleString("en-US");
+      renderJointEditMarkers();
+    }
+
+    function selectElement(element) {
+      if (selectedElement) selectedElement.classList.remove("selected");
+      selectedElement = element;
+      if (element) {
+        element.classList.add("selected");
+        statusLine.textContent = "Selected · " + element.dataset.tool;
+      }
+    }
+
+    function clampPosition(element, x, y) {
+      const width = element.offsetWidth;
+      const height = element.offsetHeight;
+      const tableBoundary = getTableBoundary();
+      return {
+        x: Math.min(Math.max(0, snap(x)), Math.max(0, designLayer.clientWidth - width)),
+        y: Math.min(Math.max(0, snap(y)), Math.max(0, snap(tableBoundary - height)))
+      };
+    }
+
+    function addElement(type, x, y, options = {}) {
+      if (isTesting) return null;
+      const element = document.createElement("div");
+      element.className = "placed-element";
+      element.dataset.tool = type;
+
+      if (type === "Column") element.classList.add("column");
+      if (type === "Beam") element.classList.add("beam");
+      if (type === "Brace") {
+        element.classList.add("brace", options.direction || braceDirection);
+      }
+      if (type === "Floor mass") element.classList.add("floor-mass");
+
+      designLayer.appendChild(element);
+      const position = clampPosition(element, x - element.offsetWidth / 2, y - element.offsetHeight / 2);
+      element.style.left = position.x + "px";
+      element.style.top = position.y + "px";
+      if (type === "Floor mass" && options.width && options.height) {
+        element.style.width = options.width + "px";
+        element.style.height = options.height + "px";
+        const resizedPosition = clampPosition(
+          element,
+          x - options.width / 2,
+          y - options.height
+        );
+        element.style.left = resizedPosition.x + "px";
+        element.style.top = resizedPosition.y + "px";
+      }
+      element.dataset.x = String(position.x);
+      element.dataset.y = String(position.y);
+
+      if (type === "Floor mass") {
+        const resizeHandle = document.createElement("button");
+        resizeHandle.type = "button";
+        resizeHandle.className = "mass-resize";
+        resizeHandle.setAttribute("aria-label", "Resize floor mass");
+        element.appendChild(resizeHandle);
+        resizeHandle.addEventListener("pointerdown", (event) => resizeFloorMass(event, element));
+      }
+
+      element.addPointerCapture?.(0);
+      element.addEventListener("pointerdown", startDrag);
+      element.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (!selectedTool) selectElement(element);
+      });
+
+      if (!selectedTool) selectElement(element);
+      updateEmptyHint();
+      return element;
+    }
+
+    function cancelPendingSegment() {
+      pendingSegment = null;
+      if (segmentPreview) {
+        segmentPreview.remove();
+        segmentPreview = null;
+      }
+    }
+
+    function removePlacementGhost() {
+      if (placementGhost) {
+        placementGhost.remove();
+        placementGhost = null;
+      }
+    }
+
+    function showPlacementGhost(type, x, y) {
+      if (!selectedTool || isTesting || pendingSegment) {
+        removePlacementGhost();
+        return;
+      }
+
+      if (!placementGhost) {
+        placementGhost = document.createElement("div");
+        placementGhost.className = "placement-preview";
+        designLayer.appendChild(placementGhost);
+      }
+
+      placementGhost.className =
+        "placement-preview " +
+        (type === "Floor mass" ? "floor-mass" : type.toLowerCase());
+      const bracePoint = type === "Brace" ? snapStructuralNode(x, y) : null;
+
+      if (type === "Column") {
+        placementGhost.style.width = "10px";
+        placementGhost.style.height = "60px";
+        placementGhost.style.transform = "none";
+      } else if (type === "Beam") {
+        placementGhost.style.width = "60px";
+        placementGhost.style.height = "10px";
+        placementGhost.style.transform = "none";
+      } else if (type === "Brace") {
+        placementGhost.style.width = "14px";
+        placementGhost.style.height = "14px";
+        placementGhost.style.borderRadius = "50%";
+        placementGhost.style.transform = "none";
+        placementGhost.style.transformOrigin = "50% 50%";
+        placementGhost.style.opacity = "0.92";
+      } else {
+        placementGhost.style.width = "40px";
+        placementGhost.style.height = "20px";
+        placementGhost.style.transform = "none";
+      }
+
+      const ghostWidth = placementGhost.offsetWidth;
+      const ghostHeight = placementGhost.offsetHeight;
+      let left;
+      let top;
+
+      if (type === "Column") {
+        const columnPoint = snapStructuralNode(x, y);
+        left = Math.max(
+          0,
+          Math.min(designLayer.clientWidth - ghostWidth, columnPoint.x - ghostWidth / 2)
+        );
+      } else if (type === "Beam") {
+        const beamPoint = snapStructuralNode(x, y);
+        left = Math.max(
+          0,
+          Math.min(designLayer.clientWidth - ghostWidth, beamPoint.x)
+        );
+      } else if (type === "Brace") {
+        left = bracePoint.x - ghostWidth / 2;
+      } else {
+        left = Math.max(
+          0,
+          Math.min(
+            designLayer.clientWidth - ghostWidth,
+            snap(x - ghostWidth / 2)
+          )
+        );
+      }
+
+      const tableTop = getTableBoundary();
+      if (type === "Column") {
+        top = Math.max(
+          0,
+          Math.min(tableTop - ghostHeight, snap(y) - ghostHeight)
+        );
+      } else if (type === "Beam") {
+        const beamPoint = snapStructuralNode(x, y);
+        top = Math.max(
+          0,
+          Math.min(tableTop - ghostHeight, beamPoint.y - ghostHeight / 2)
+        );
+      } else if (type === "Brace") {
+        top = bracePoint.y - ghostHeight / 2;
+      } else {
+        top = Math.max(
+          0,
+          Math.min(
+            tableTop - ghostHeight,
+            snap(y - ghostHeight / 2)
+          )
+        );
+      }
+
+      placementGhost.style.left = left + "px";
+      placementGhost.style.top = top + "px";
+    }
+
+    function getStructuralAnchorPoints() {
+      const points = [];
+      designLayer.querySelectorAll(".placed-element.column, .placed-element.beam").forEach((element) => {
+        const startX = Number(element.dataset.startX);
+        const startY = Number(element.dataset.startY);
+        const endX = Number(element.dataset.endX);
+        const endY = Number(element.dataset.endY);
+
+        if (Number.isFinite(startX) && Number.isFinite(startY)) points.push({ x: startX, y: startY });
+        if (Number.isFinite(endX) && Number.isFinite(endY)) points.push({ x: endX, y: endY });
+
+        const dx = endX - startX;
+        const dy = endY - startY;
+        const length = Math.hypot(dx, dy);
+        if (length > 0) {
+          const steps = Math.floor(length / GRID);
+          for (let step = 1; step < steps; step++) {
+            const t = (step * GRID) / length;
+            points.push({ x: snap(startX + dx * t), y: snap(startY + dy * t) });
+          }
+        }
+      });
+
+      const unique = [];
+      points.forEach((point) => {
+        if (!unique.some((other) => Math.abs(other.x - point.x) < 1 && Math.abs(other.y - point.y) < 1)) {
+          unique.push(point);
+        }
+      });
+      return unique;
+    }
+
+    function snapBracePoint(x, y) {
+      const anchors = getStructuralAnchorPoints();
+      let nearest = null;
+      let nearestDistance = 26;
+      anchors.forEach((anchor) => {
+        const distance = Math.hypot(anchor.x - x, anchor.y - y);
+        if (distance < nearestDistance) {
+          nearest = anchor;
+          nearestDistance = distance;
+        }
+      });
+      return nearest;
+    }
+
+    function snapStructuralNode(x, y) {
+      const snappedGrid = snapPlacementPoint(x, y);
+      const structuralPoint = snapBracePoint(snappedGrid.x, snappedGrid.y);
+      return structuralPoint || snappedGrid;
+    }
+
+    function handleBraceAnchor(x, y) {
+      const anchor = snapStructuralNode(x, y);
+
+      if (!pendingSegment) {
+        pendingSegment = anchor;
+        removePlacementGhost();
+        segmentPreview = document.createElement("div");
+        segmentPreview.className = "segment-preview brace";
+        segmentPreview.style.left = anchor.x + "px";
+        segmentPreview.style.top = (anchor.y - 5) + "px";
+        segmentPreview.style.width = GRID + "px";
+        designLayer.appendChild(segmentPreview);
+        statusLine.textContent = "Brace placement · Click the second grid point";
+      } else if (pendingSegment.x === anchor.x && pendingSegment.y === anchor.y) {
+        statusLine.textContent = "Brace placement · Choose a different anchor";
+      } else {
+        const element = addBrace(pendingSegment, anchor);
+        cancelPendingSegment();
+        statusLine.textContent = element
+          ? "Design mode · Brace placed"
+          : "Brace placement · Choose points farther apart";
+      }
+    }
+
+    function updateSegmentPreview(x, y) {
+      if (!pendingSegment || !segmentPreview) return;
+      const start = pendingSegment;
+      if (selectedTool === "Brace") {
+        const end = snapStructuralNode(x, y);
+        segmentPreview.style.opacity = "1";
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        const length = Math.hypot(dx, dy);
+        if (length <= 1) {
+          segmentPreview.style.opacity = "0";
+          return;
+        }
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+        segmentPreview.style.left = start.x + "px";
+        segmentPreview.style.top = (start.y - 5) + "px";
+        segmentPreview.style.width = length + "px";
+        segmentPreview.style.height = "10px";
+        segmentPreview.style.transform = "rotate(" + angle + "deg)";
+        statusLine.textContent = "Brace preview · " + (length / GRID).toFixed(1) + " ft";
+        return;
+      }
+
+      let endX = snap(x);
+      let endY = snap(y);
+
+      endX = Math.max(0, Math.min(designLayer.clientWidth, endX));
+      endY = Math.max(0, Math.min(getTableBoundary(), endY));
+      if (selectedTool === "Column") {
+        endX = start.x;
+        endY = snapStructuralNode(start.x, endY).y;
+      }
+      if (selectedTool === "Beam") {
+        const endNode = snapStructuralNode(endX, start.y);
+        endX = endNode.x;
+        endY = start.y;
+      }
+
+      const dx = endX - start.x;
+      const dy = endY - start.y;
+      const length = Math.max(GRID, Math.hypot(dx, dy));
+      segmentPreview.className = "segment-preview " + selectedTool.toLowerCase();
+
+      if (selectedTool === "Column") {
+        segmentPreview.style.left = (start.x - 5) + "px";
+        segmentPreview.style.top = Math.min(start.y, endY) + "px";
+        segmentPreview.style.width = "10px";
+        segmentPreview.style.height = length + "px";
+        segmentPreview.style.transform = "none";
+      } else {
+        segmentPreview.style.left = Math.min(start.x, endX) + "px";
+        segmentPreview.style.top = (start.y >= getTableBoundary() ? getTableBoundary() - 5 : start.y - 5) + "px";
+        segmentPreview.style.width = length + "px";
+        segmentPreview.style.height = "10px";
+        segmentPreview.style.transform = "none";
+      }
+
+      const feet = length / GRID;
+      statusLine.textContent = selectedTool + " preview · " + feet.toFixed(0) + " ft";
+    }
+
+    function addSegment(type, start, end) {
+      if (isTesting) return null;
+      let startX = snap(start.x);
+      let startY = snap(start.y);
+      let endX = snap(end.x);
+      let endY = snap(end.y);
+
+      if (type === "Column") {
+        endX = startX;
+        endY = snapStructuralNode(startX, endY).y;
+      } else {
+        endY = startY;
+        const startNode = snapStructuralNode(startX, startY);
+        const endNode = snapStructuralNode(endX, startY);
+        startX = startNode.x;
+        startY = startNode.y;
+        endX = endNode.x;
+        endY = startY;
+      }
+      const aligned = alignGridMember(type, startX, startY, endX, endY);
+      startX = aligned.startX;
+      startY = aligned.startY;
+      endX = aligned.endX;
+      endY = aligned.endY;
+
+      const tableTop = getTableBoundary();
+      startY = Math.min(startY, tableTop);
+      endY = Math.min(endY, tableTop);
+
+      const dx = endX - startX;
+      const dy = endY - startY;
+      const length = Math.hypot(dx, dy);
+      if (length < GRID) return null;
+
+      const element = document.createElement("div");
+      element.className = "placed-element " + (type === "Column" ? "column" : "beam");
+      element.dataset.tool = type;
+      element.style.width = (type === "Column" ? 10 : length) + "px";
+      element.style.height = (type === "Column" ? length : 10) + "px";
+
+      if (type === "Beam") {
+        element.style.left = Math.min(startX, endX) + "px";
+        element.style.top = (startY - 5) + "px";
+      } else {
+        element.style.left = (startX - 5) + "px";
+        element.style.top = Math.min(startY, endY) + "px";
+      }
+
+      element.dataset.x = element.style.left;
+      element.dataset.y = element.style.top;
+      element.dataset.startX = String(startX);
+      element.dataset.startY = String(startY);
+      element.dataset.endX = String(endX);
+      element.dataset.endY = String(endY);
+      designLayer.appendChild(element);
+
+      const label = document.createElement("span");
+      label.className = "segment-length";
+      label.textContent = (length / GRID).toFixed(0) + " ft";
+      label.style.left = type === "Beam" ? "50%" : "12px";
+      label.style.top = type === "Beam" ? "-18px" : "50%";
+      label.style.transform = type === "Beam" ? "translateX(-50%)" : "translateY(-50%)";
+      element.appendChild(label);
+
+      const startHandle = document.createElement("div");
+      startHandle.setAttribute("role", "button");
+      startHandle.className = "endpoint start";
+      startHandle.setAttribute("aria-label", "Edit start of " + type);
+      startHandle.style.left = type === "Column" ? "-2px" : "-7px";
+      startHandle.style.top = type === "Column" ? "-7px" : "-2px";
+
+      const endHandle = document.createElement("div");
+      endHandle.setAttribute("role", "button");
+      endHandle.className = "endpoint end";
+      endHandle.setAttribute("aria-label", "Edit end of " + type);
+      endHandle.style.left = type === "Column" ? "-2px" : (length - 7) + "px";
+      endHandle.style.top = type === "Column" ? (length - 7) + "px" : "-2px";
+
+      element.appendChild(startHandle);
+      element.appendChild(endHandle);
+      startHandle.addEventListener("pointerdown", (event) => editSegmentEndpoint(event, element, "start"));
+      endHandle.addEventListener("pointerdown", (event) => editSegmentEndpoint(event, element, "end"));
+      alignEndpointHandles(element);
+
+      element.addEventListener("pointerdown", startDrag);
+      element.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (!selectedTool) selectElement(element);
+      });
+      if (!selectedTool) selectElement(element);
+      updateEmptyHint();
+      return element;
+    }
+
+    function addBrace(start, end) {
+      if (isTesting) return null;
+      const tableTop = getTableBoundary();
+      start = { x: snap(start.x), y: Math.min(snap(start.y), tableTop) };
+      end = { x: snap(end.x), y: Math.min(snap(end.y), tableTop) };
+      const upright = getUprightBraceGeometry(start, end);
+      start = upright.start;
+      end = upright.end;
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const length = Math.hypot(dx, dy);
+      if (length < GRID) return null;
+
+      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+      const element = document.createElement("div");
+      element.className = "placed-element brace";
+      element.dataset.tool = "Brace";
+      element.dataset.startX = String(start.x);
+      element.dataset.startY = String(start.y);
+      element.dataset.endX = String(end.x);
+      element.dataset.endY = String(end.y);
+      element.style.left = start.x + "px";
+      element.style.top = (start.y - 5) + "px";
+      element.style.width = length + "px";
+      element.style.height = "10px";
+      element.style.transform = "rotate(" + angle + "deg)";
+      element.style.transformOrigin = "0 50%";
+
+      const label = document.createElement("span");
+      label.className = "segment-length";
+      label.textContent = (length / GRID).toFixed(1) + " ft";
+      label.style.left = "50%";
+      label.style.top = "-18px";
+      label.style.transform = "translateX(-50%)";
+      element.appendChild(label);
+      keepBraceLabelUpright(element, angle);
+
+      const startHandle = document.createElement("button");
+      startHandle.type = "button";
+      startHandle.className = "endpoint start";
+      startHandle.setAttribute("aria-label", "Edit start of Brace");
+      startHandle.style.left = "-7px";
+      startHandle.style.top = "-2px";
+
+      const endHandle = document.createElement("button");
+      endHandle.type = "button";
+      endHandle.className = "endpoint end";
+      endHandle.setAttribute("aria-label", "Edit end of Brace");
+      endHandle.style.left = (length - 7) + "px";
+      endHandle.style.top = "-2px";
+
+      element.appendChild(startHandle);
+      element.appendChild(endHandle);
+      startHandle.addEventListener("pointerdown", (event) => editSegmentEndpoint(event, element, "start"));
+      endHandle.addEventListener("pointerdown", (event) => editSegmentEndpoint(event, element, "end"));
+
+      designLayer.appendChild(element);
+      alignEndpointHandles(element);
+      element.addEventListener("pointerdown", startDrag);
+      element.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (!selectedTool) selectElement(element);
+      });
+      if (!selectedTool) selectElement(element);
+      updateEmptyHint();
+      return element;
+    }
+
+    function resizeFloorMass(event, element) {
+      if (isTesting) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (!selectedTool) selectElement(element);
+      const handle = event.currentTarget;
+      handle.setPointerCapture(event.pointerId);
+      const rect = element.getBoundingClientRect();
+      const startWidth = rect.width;
+      const startHeight = rect.height;
+      const startX = event.clientX;
+      const startY = event.clientY;
+
+      function move(moveEvent) {
+        const left = parseFloat(element.style.left) || 0;
+        const top = parseFloat(element.style.top) || 0;
+        const width = Math.max(GRID, snap(startWidth + moveEvent.clientX - startX));
+        const height = Math.max(GRID, snap(startHeight + moveEvent.clientY - startY));
+        element.style.width = Math.min(width, designLayer.clientWidth - left) + "px";
+        element.style.height = Math.min(height, getTableBoundary() - top) + "px";
+        updateTotalCost();
+        statusLine.textContent = "Floor mass · " + (parseFloat(element.style.width) / GRID).toFixed(0) + " × " + (parseFloat(element.style.height) / GRID).toFixed(0) + " ft";
+      }
+
+      function end() {
+        handle.removeEventListener("pointermove", move);
+        handle.removeEventListener("pointerup", end);
+        handle.removeEventListener("pointercancel", end);
+      }
+
+      handle.addEventListener("pointermove", move);
+      handle.addEventListener("pointerup", end);
+      handle.addEventListener("pointercancel", end);
+    }
+
+    function editSegmentEndpoint(event, element, endpoint) {
+      if (isTesting) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (!selectedTool) selectElement(element);
+      const handle = event.currentTarget;
+      handle.setPointerCapture(event.pointerId);
+      const type = element.dataset.tool;
+
+      function move(moveEvent) {
+        const rect = designLayer.getBoundingClientRect();
+        const point =
+          type === "Brace"
+            ? snapStructuralNode(
+                moveEvent.clientX - rect.left,
+                moveEvent.clientY - rect.top
+              )
+            : {
+                x: snap(moveEvent.clientX - rect.left),
+                y: snap(moveEvent.clientY - rect.top)
+              };
+
+        let startX = Number(element.dataset.startX);
+        let startY = Number(element.dataset.startY);
+        let endX = Number(element.dataset.endX);
+        let endY = Number(element.dataset.endY);
+
+        if (type === "Brace") {
+          if (endpoint === "start") {
+            startX = point.x;
+            startY = point.y;
+          } else {
+            endX = point.x;
+            endY = point.y;
+          }
+        } else if (type === "Beam") {
+          if (endpoint === "start") startX = point.x;
+          else endX = point.x;
+          startY = snap(startY);
+          endY = startY;
+        } else {
+          if (endpoint === "start") startY = point.y;
+          else endY = point.y;
+          startX = snap(startX);
+          endX = startX;
+        }
+
+        startX = Math.max(0, Math.min(designLayer.clientWidth - (type === "Column" ? 10 : 0), startX));
+        endX = Math.max(0, Math.min(designLayer.clientWidth - (type === "Column" ? 10 : 0), endX));
+        const tableTop = getTableBoundary();
+        startY = Math.max(0, Math.min(tableTop, startY));
+        endY = Math.max(0, Math.min(tableTop, endY));
+
+        const dx = endX - startX;
+        const dy = endY - startY;
+        const length = Math.hypot(dx, dy);
+
+        if (length < GRID) return;
+
+        element.dataset.startX = String(startX);
+        element.dataset.startY = String(startY);
+        element.dataset.endX = String(endX);
+        element.dataset.endY = String(endY);
+        const label = element.querySelector(".segment-length");
+
+        if (type === "Brace") {
+          const braceDx = endX - startX;
+          const braceDy = endY - startY;
+          const braceLength = Math.hypot(braceDx, braceDy);
+          const braceAngle = Math.atan2(braceDy, braceDx) * 180 / Math.PI;
+          element.style.left = startX + "px";
+          element.style.top = (startY - 5) + "px";
+          element.style.width = braceLength + "px";
+          element.style.height = "10px";
+          element.style.transform = "rotate(" + braceAngle + "deg)";
+          element.style.transformOrigin = "0 50%";
+          keepBraceLabelUpright(element, braceAngle);
+          const braceStartHandle = element.querySelector(".endpoint.start");
+          const braceEndHandle = element.querySelector(".endpoint.end");
+          if (braceStartHandle) { braceStartHandle.style.left = "-7px"; braceStartHandle.style.top = "-2px"; }
+          if (braceEndHandle) { braceEndHandle.style.left = (braceLength - 7) + "px"; braceEndHandle.style.top = "-2px"; }
+          if (label) label.textContent = (braceLength / GRID).toFixed(1) + " ft";
+          statusLine.textContent = "Brace length · " + (braceLength / GRID).toFixed(1) + " ft";
+        } else if (type === "Beam") {
+          element.style.left = Math.min(startX, endX) + "px";
+          element.style.top = (startY - 5) + "px";
+          element.style.width = length + "px";
+          element.style.height = "10px";
+          const startHandle = element.querySelector(".endpoint.start");
+          const endHandle = element.querySelector(".endpoint.end");
+          if (startHandle) { startHandle.style.left = "-7px"; startHandle.style.top = "-2px"; }
+          if (endHandle) { endHandle.style.left = (length - 7) + "px"; endHandle.style.top = "-2px"; }
+        } else {
+          element.style.left = (startX - 5) + "px";
+          element.style.top = Math.min(startY, endY) + "px";
+          element.style.width = "10px";
+          element.style.height = length + "px";
+          const startHandle = element.querySelector(".endpoint.start");
+          const endHandle = element.querySelector(".endpoint.end");
+          if (startHandle) { startHandle.style.left = "-2px"; startHandle.style.top = "-7px"; }
+          if (endHandle) { endHandle.style.left = "-2px"; endHandle.style.top = (length - 7) + "px"; }
+        }
+
+        if (label && type !== "Brace") label.textContent = (length / GRID).toFixed(0) + " ft";
+        alignEndpointHandles(element);
+        updateTotalCost();
+        statusLine.textContent = type + " length · " + (length / GRID).toFixed(0) + " ft";
+      }
+
+      function end() {
+        handle.removeEventListener("pointermove", move);
+        handle.removeEventListener("pointerup", end);
+        handle.removeEventListener("pointercancel", end);
+      }
+
+      handle.addEventListener("pointermove", move);
+      handle.addEventListener("pointerup", end);
+      handle.addEventListener("pointercancel", end);
+    }
+
+    function startDrag(event) {
+      if (isTesting) return;
+      if (event.target.classList?.contains("endpoint")) return;
+      if (selectedTool) {
+        event.preventDefault();
+        event.stopPropagation();
+        selectElement(null);
+        const rect = designLayer.getBoundingClientRect();
+        const point = snapStructuralNode(
+          event.clientX - rect.left,
+          event.clientY - rect.top
+        );
+
+        if (selectedTool === "Brace") {
+          handleBraceAnchor(point.x, point.y);
+          return;
+        }
+
+        if (selectedTool === "Column" || selectedTool === "Beam") {
+          if (!pendingSegment) {
+            pendingSegment = {
+              x: point.x,
+              y: selectedTool === "Column" ? point.y : point.y
+            };
+            segmentPreview = document.createElement("div");
+            segmentPreview.className = "segment-preview " + selectedTool.toLowerCase();
+            segmentPreview.style.left = (selectedTool === "Column" ? point.x - 5 : point.x) + "px";
+            segmentPreview.style.top = (selectedTool === "Column" ? point.y : point.y - 4) + "px";
+            segmentPreview.style.width = selectedTool === "Column" ? "10px" : GRID + "px";
+            segmentPreview.style.height = selectedTool === "Column" ? GRID + "px" : "8px";
+            designLayer.appendChild(segmentPreview);
+            removePlacementGhost();
+            statusLine.textContent = "Design mode · Click end point for " + selectedTool.toLowerCase();
+          } else {
+            const element = addSegment(selectedTool, pendingSegment, point);
+            cancelPendingSegment();
+            statusLine.textContent = element
+              ? "Design mode · " + selectedTool + " placed"
+              : "Design mode · Segment must be longer than 1 ft";
+          }
+        }
+        return;
+      }
+      if (selectedTool === "Brace") {
+        if (event.target.closest(".placed-element.column, .placed-element.beam")) {
+          event.preventDefault();
+          event.stopPropagation();
+          const rect = designLayer.getBoundingClientRect();
+          const x = snap(event.clientX - rect.left);
+          const y = snap(event.clientY - rect.top);
+          handleBraceAnchor(x, y);
+        }
+        return;
+      }
+      if (event.target.classList?.contains("endpoint")) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const element = event.currentTarget;
+      selectElement(element);
+      element.setPointerCapture(event.pointerId);
+      const rect = element.getBoundingRect?.() || element.getBoundingClientRect();
+      const offsetX = event.clientX - rect.left;
+      const offsetY = event.clientY - rect.top;
+
+      function move(event) {
+        const layerRect = designLayer.getBoundingClientRect();
+        const position = clampPosition(
+          element,
+          event.clientX - layerRect.left - offsetX,
+          event.clientY - layerRect.top - offsetY
+        );
+        const oldLeft = parseFloat(element.style.left) || 0;
+        const oldTop = parseFloat(element.style.top) || 0;
+        const dx = position.x - oldLeft;
+        const dy = position.y - oldTop;
+        element.style.left = position.x + "px";
+        element.style.top = position.y + "px";
+        element.dataset.x = String(position.x);
+        element.dataset.y = String(position.y);
+
+        if (element.dataset.tool === "Beam" || element.dataset.tool === "Column") {
+          const startX = Number(element.dataset.startX || 0);
+          const startY = Number(element.dataset.startY || 0);
+          const endX = Number(element.dataset.endX || 0);
+          const endY = Number(element.dataset.endY || 0);
+          if (element.dataset.tool === "Beam") {
+            const newStartX = snap(position.x);
+            const newStartY = snap(position.y + 5);
+            const length = snap(endX - startX);
+            const newEndX = snap(newStartX + length);
+            const tableTop = getTableBoundary();
+            if (newEndX <= designLayer.clientWidth && newStartY <= tableTop) {
+              element.dataset.startX = String(newStartX);
+              element.dataset.startY = String(newStartY);
+              element.dataset.endX = String(newEndX);
+              element.dataset.endY = String(newStartY);
+              element.style.left = newStartX + "px";
+              element.style.top = (newStartY - 5) + "px";
+            }
+          } else {
+            const newStartX = snap(position.x + 5);
+            const newStartY = snap(startY + dy);
+            const newEndY = snap(endY + dy);
+            const tableTop = getTableBoundary();
+            if (newStartX >= 0 && newStartX <= designLayer.clientWidth &&
+                newStartY >= 0 && newEndY <= tableTop) {
+              element.dataset.startX = String(newStartX);
+              element.dataset.startY = String(newStartY);
+              element.dataset.endX = String(newStartX);
+              element.dataset.endY = String(newEndY);
+              element.style.left = (newStartX - 5) + "px";
+              element.style.top = Math.min(newStartY, newEndY) + "px";
+            }
+          }
+          alignEndpointHandles(element);
+          updateTotalCost();
+        }
+      }
+
+      function end() {
+        element.removeEventListener("pointermove", move);
+        element.removeEventListener("pointerup", end);
+        element.removeEventListener("pointercancel", end);
+      }
+
+      element.addEventListener("pointermove", move);
+      element.addEventListener("pointerup", end);
+      element.addEventListener("pointercancel", end);
+    }
+
+    function clearStructure() {
+      if (isTesting) return;
+      resetHighScores();
+      momentJointKeys.clear();
+      testElapsed = 0;
+      testPeakAcceleration = 0;
+      document.getElementById("elapsedValue").textContent = "0.00 s";
+      document.getElementById("peakAccelValue").textContent = "0.00 g";
+      const startButton = document.getElementById("startBtn");
+      startButton.textContent = "Start test";
+      startButton.disabled = false;
+      startButton.classList.remove("result-success", "result-failure");
+      document.getElementById("stopBtn").disabled = true;
+      statusLine.classList.remove("result-success", "result-failure");
+      clearJointStressIndicators();
+      cancelPendingSegment();
+      removePlacementGhost();
+      designLayer.replaceChildren();
+      selectElement(null);
+      updateEmptyHint();
+      statusLine.textContent = "Structure cleared · 0.00 s";
+    }
+
+    function loadStarter() {
+      if (isTesting) return;
+      clearStructure();
+      const centerX = designLayer.clientWidth / 2;
+      const left = centerX - 120;
+      const right = centerX + 120;
+      const bottom = getTableBoundary();
+      const middle = bottom - 120;
+      const top = bottom - 240;
+
+      const positions = [
+        ["Floor mass", centerX, middle],
+        ["Floor mass", centerX, top]
+      ];
+      positions.forEach(([type, x, y, direction]) => {
+        const mass = addElement(type, x, y, {
+          direction,
+          width: right - left - 20,
+          height: 20
+        });
+        if (mass) {
+          mass.style.left = (centerX - (right - left - 20) / 2) + "px";
+          mass.style.top = (y - 20) + "px";
+        }
+      });
+
+      addSegment("Column", { x: left, y: top }, { x: left, y: middle });
+      addSegment("Column", { x: left, y: middle }, { x: left, y: bottom });
+      addSegment("Column", { x: right, y: top }, { x: right, y: middle });
+      addSegment("Column", { x: right, y: middle }, { x: right, y: bottom });
+      addSegment("Beam", { x: left, y: bottom }, { x: right, y: bottom });
+      addSegment("Beam", { x: left, y: middle }, { x: right, y: middle });
+      addSegment("Beam", { x: left, y: top }, { x: right, y: top });
+      addBrace({ x: left, y: top }, { x: right, y: middle });
+      addBrace({ x: left, y: bottom }, { x: right, y: middle });
+      selectElement(null);
+      statusLine.textContent = "Starter tower loaded · Ready to test";
+    }
+
+    function bindRangeAndNumber(rangeId, numberId) {
+      const range = document.getElementById(rangeId);
+      const number = document.getElementById(numberId);
+      const clamp = (value) => Math.min(Number(range.max), Math.max(Number(range.min), Number(value)));
+      range.addEventListener("input", () => {
+        number.value = range.value;
+      });
+      number.addEventListener("input", () => {
+        if (number.value === "") return;
+        const value = clamp(number.value);
+        number.value = String(value);
+        range.value = String(value);
+      });
+      number.addEventListener("change", () => {
+        const value = number.value === "" ? range.value : clamp(number.value);
+        number.value = String(value);
+        range.value = String(value);
+      });
+    }
+
+    bindRangeAndNumber("amplitudeRange", "amplitudeNumber");
+    bindRangeAndNumber("frequencyRange", "frequencyNumber");
+
+    function handleNodePlacementClick(event) {
+      if (!selectedTool || isTesting) return false;
+      const rect = designLayer.getBoundingClientRect();
+      const point = snapStructuralNode(
+        event.clientX - rect.left,
+        event.clientY - rect.top
+      );
+      event.preventDefault();
+      event.stopPropagation();
+      selectElement(null);
+
+      if (selectedTool === "Brace") {
+        handleBraceAnchor(point.x, point.y);
+        return true;
+      }
+
+      if (selectedTool === "Column" || selectedTool === "Beam") {
+        if (!pendingSegment) {
+          pendingSegment =
+            selectedTool === "Column"
+              ? { x: point.x, y: point.y }
+              : { x: point.x, y: point.y };
+          segmentPreview = document.createElement("div");
+          segmentPreview.className = "segment-preview " + selectedTool.toLowerCase();
+          segmentPreview.style.left = (selectedTool === "Column" ? point.x - 5 : point.x) + "px";
+          segmentPreview.style.top = (selectedTool === "Column" ? point.y : point.y - 4) + "px";
+          segmentPreview.style.width = selectedTool === "Column" ? "10px" : GRID + "px";
+          segmentPreview.style.height = selectedTool === "Column" ? GRID + "px" : "8px";
+          designLayer.appendChild(segmentPreview);
+          removePlacementGhost();
+          statusLine.textContent = "Design mode · Click end point for " + selectedTool.toLowerCase();
+        } else {
+          const element = addSegment(selectedTool, pendingSegment, point);
+          cancelPendingSegment();
+          statusLine.textContent = element
+            ? "Design mode · " + selectedTool + " placed"
+            : "Design mode · Segment must be longer than 1 ft";
+        }
+        return true;
+      }
+      return false;
+    }
+
+    designLayer.addEventListener("pointerdown", (event) => {
+      if (!selectedTool || isTesting) return;
+      const targetElement = event.target instanceof Element ? event.target : null;
+      if (selectedTool === "Brace") {
+        event.preventDefault();
+        event.stopPropagation();
+        const rect = designLayer.getBoundingClientRect();
+        handleBraceAnchor(event.clientX - rect.left, event.clientY - rect.top);
+        return;
+      }
+      if (targetElement?.closest(".placed-element")) handleNodePlacementClick(event);
+    }, true);
+
+    document.querySelectorAll(".tool").forEach((tool) => {
+      tool.addEventListener("click", () => {
+        if (isTesting) return;
+        cancelPendingSegment();
+        removePlacementGhost();
+        document.querySelectorAll(".tool").forEach((item) => item.classList.remove("active"));
+        tool.classList.add("active");
+        selectedTool = tool.dataset.tool;
+        selectElement(null);
+        statusLine.textContent = "Design mode · " + tool.dataset.tool + " selected";
+      });
+    });
+
+    designLayer.addEventListener("pointerdown", (event) => {
+      if (isTesting) return;
+      if (!selectedTool) {
+        statusLine.textContent = "Design mode · Choose a structural element";
+        return;
+      }
+      removePlacementGhost();
+      if (event.target !== designLayer && selectedTool !== "Brace") return;
+      const rect = designLayer.getBoundingClientRect();
+      const placementPoint = snapPlacementPoint(
+        event.clientX - rect.left,
+        event.clientY - rect.top
+      );
+      const rawX = placementPoint.x;
+      const rawY = placementPoint.y;
+      const snappedPoint = snapStructuralNode(
+        rawX,
+        selectedTool === "Beam" ? rawY : rawY
+      );
+
+      if (selectedTool === "Column" || selectedTool === "Beam") {
+        if (!pendingSegment) {
+          pendingSegment =
+            selectedTool === "Beam"
+              ? snappedPoint
+              : { x: snappedPoint.x, y: rawY };
+          segmentPreview = document.createElement("div");
+          segmentPreview.className = "segment-preview " + selectedTool.toLowerCase();
+          segmentPreview.style.left = rawX + "px";
+          segmentPreview.style.top = (rawY - 4) + "px";
+          segmentPreview.style.width = GRID + "px";
+          designLayer.appendChild(segmentPreview);
+          statusLine.textContent = "Design mode · Click end point for " + selectedTool.toLowerCase();
+        } else {
+          const element = addSegment(selectedTool, pendingSegment, { x: rawX, y: rawY });
+          cancelPendingSegment();
+          statusLine.textContent = element
+            ? "Design mode · " + selectedTool + " placed"
+            : "Design mode · Segment must be longer than 1 ft";
+        }
+        return;
+      }
+
+      if (selectedTool === "Brace") {
+        handleBraceAnchor(rawX, rawY);
+        return;
+      }
+      addElement(selectedTool, rawX, rawY);
+      statusLine.textContent = "Design mode · " + selectedTool + " placed";
+    });
+
+    designLayer.addEventListener("pointermove", (event) => {
+      if (!pendingSegment) {
+        const rect = designLayer.getBoundingClientRect();
+        showPlacementGhost(
+          selectedTool,
+          snap(event.clientX - rect.left),
+          snap(event.clientY - rect.top)
+        );
+      }
+      if (!pendingSegment) return;
+      const rect = designLayer.getBoundingClientRect();
+      updateSegmentPreview(event.clientX - rect.left, event.clientY - rect.top);
+    });
+
+    designLayer.addEventListener("pointerleave", removePlacementGhost);
+
+    shakeTable.addEventListener("pointermove", (event) => {
+      if (selectedTool === "Brace" && pendingSegment && !isTesting) {
+        const rect = designLayer.getBoundingClientRect();
+        updateSegmentPreview(event.clientX - rect.left, event.clientY - rect.top);
+        return;
+      }
+      if (!pendingSegment && selectedTool === "Brace" && !isTesting) {
+        const rect = designLayer.getBoundingClientRect();
+        showPlacementGhost("Brace", event.clientX - rect.left, getTableBoundary());
+        return;
+      }
+      if (!pendingSegment && selectedTool === "Column" && !isTesting) {
+        const rect = designLayer.getBoundingClientRect();
+        const tablePoint = snapStructuralNode(
+          event.clientX - rect.left,
+          getTableBoundary()
+        );
+        showPlacementGhost(
+          "Column",
+          tablePoint.x,
+          getTableBoundary()
+        );
+      }
+    });
+
+    shakeTable.addEventListener("pointerleave", removePlacementGhost);
+
+    shakeTable.addEventListener("pointerdown", (event) => {
+      if (isTesting) return;
+      const rect = designLayer.getBoundingClientRect();
+      if (selectedTool === "Brace") {
+        event.preventDefault();
+        event.stopPropagation();
+        handleBraceAnchor(event.clientX - rect.left, event.clientY - rect.top);
+        return;
+      }
+      if (selectedTool !== "Column" || pendingSegment) return;
+      const x = snapStructuralNode(
+        event.clientX - rect.left,
+        getTableBoundary()
+      ).x;
+      pendingSegment = { x, y: getTableBoundary() };
+      segmentPreview = document.createElement("div");
+      segmentPreview.className = "segment-preview column";
+      segmentPreview.style.left = (x - 5) + "px";
+      segmentPreview.style.top = getTableBoundary() + "px";
+      segmentPreview.style.width = "10px";
+      segmentPreview.style.height = "0px";
+      designLayer.appendChild(segmentPreview);
+      removePlacementGhost();
+      statusLine.textContent = "Design mode · Click the top point for column height";
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        cancelPendingSegment();
+        removePlacementGhost();
+        selectElement(null);
+        selectedTool = null;
+        document.querySelectorAll(".tool").forEach((item) => item.classList.remove("active"));
+        statusLine.textContent = "Design mode · Placement tool off · Click a member to select";
+        return;
+      }
+      if (isTesting || (event.key !== "Delete" && event.key !== "Backspace")) return;
+      if (!selectedElement) return;
+      const activeTag = document.activeElement?.tagName;
+      if (activeTag === "INPUT") return;
+      event.preventDefault();
+      selectedElement.remove();
+      selectedElement = null;
+      updateEmptyHint();
+      statusLine.textContent = "Design mode · Element deleted";
+    });
+
+    const gravityModes = {
+      earth: { bg: "#eef7ff", panel: "#ffffff", accent: "#2563eb" },
+      mars: { bg: "#efc0aa", panel: "#fff8f5", accent: "#b45309" },
+      moon: { bg: "#d8dde4", panel: "#f7f8fa", accent: "#4b5563" }
+    };
+
+    document.querySelectorAll(".gravity-btn").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".gravity-btn").forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+        const mode = gravityModes[button.dataset.gravity];
+        activeGravityMode = button.dataset.gravity;
+        document.documentElement.style.setProperty("--app-bg", mode.bg);
+        document.documentElement.style.setProperty("--earth-panel", mode.panel);
+        document.documentElement.style.setProperty("--earth-accent", mode.accent);
+        statusLine.textContent = button.textContent.replace(/\s+/g, " ").trim() + " gravity selected";
+      });
+    });
+
+    collapseBtn.addEventListener("click", () => {
+      const collapsed = sidebar.classList.toggle("collapsed");
+      collapseBtn.textContent = collapsed ? "+" : "−";
+      collapseBtn.setAttribute("aria-expanded", String(!collapsed));
+      collapseBtn.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
+    });
+
+    let physicsEngine = null;
+    let physicsRunner = null;
+    let physicsAnimation = null;
+    let physicsBodies = [];
+    let physicsTableBody = null;
+    let tableBaseLeft = 0;
+    let testStartedAt = 0;
+    let testElapsed = 0;
+    let testPeakAcceleration = 0;
+    let testFinished = false;
+    let physicsAnimationId = null;
+    let physicsSnapshots = [];
+    let jointGroups = [];
+    let jointGroupByKey = new Map();
+    const MATTER_MASS_TO_KIP_S2_PER_FT = 0.01;
+    const ELEVATED_JOINT_FORCE_KIP = 10;
+    const FAILED_JOINT_FORCE_KIP = 15;
+
+    function clearJointStressIndicators() {
+      jointGroups.forEach((group) => {
+        group.indicators?.forEach((indicator) => indicator.remove());
+      });
+      jointGroups = [];
+      jointGroupByKey.clear();
+    }
+
+    function gravityAcceleration() {
+      return GRAVITY_ACCELERATION_FTPS2[activeGravityMode];
+    }
+
+    function worldPointToBodyLocal(body, point) {
+      const dx = point.x - body.position.x;
+      const dy = point.y - body.position.y;
+      const cosine = Math.cos(body.angle);
+      const sine = Math.sin(body.angle);
+      return {
+        x: dx * cosine + dy * sine,
+        y: -dx * sine + dy * cosine
+      };
+    }
+
+    function addMomentRotationLock(group, bodyA, bodyB, node) {
+      const secondaryPoint = { x: node.x + GRID * 1.25, y: node.y };
+      const constraint = window.Matter.Constraint.create({
+        bodyA,
+        pointA: worldPointToBodyLocal(bodyA, secondaryPoint),
+        bodyB,
+        pointB: worldPointToBodyLocal(bodyB, secondaryPoint),
+        stiffness: 1,
+        damping: 0.5,
+        length: 0
+      });
+      window.Matter.Composite.add(physicsEngine.world, constraint);
+      group.constraints.push(constraint);
+    }
+
+    function addBraceRotationLock(group, hostEntry, farEntry, node, farPoint) {
+      const isColumn = hostEntry.body.element?.dataset.tool === "Column";
+      const secondaryPoint = isColumn
+        ? { x: node.x + GRID * 1.25, y: node.y }
+        : { x: node.x, y: node.y + GRID * 1.25 };
+      const initialLength = Math.hypot(
+        secondaryPoint.x - farPoint.x,
+        secondaryPoint.y - farPoint.y
+      );
+      const constraint = window.Matter.Constraint.create({
+        bodyA: hostEntry.body,
+        pointA: worldPointToBodyLocal(hostEntry.body, secondaryPoint),
+        bodyB: farEntry.body,
+        pointB: worldPointToBodyLocal(farEntry.body, farPoint),
+        stiffness: 1,
+        damping: 0.5,
+        length: initialLength
+      });
+      window.Matter.Composite.add(physicsEngine.world, constraint);
+      group.constraints.push(constraint);
+      return constraint;
+    }
+
+    app.addEventListener("pointerdown", () => {
+      if (!isTesting) clearJointStressIndicators();
+    }, true);
+    document.addEventListener("keydown", () => {
+      if (!isTesting) clearJointStressIndicators();
+    }, true);
+
+    function buildPhysicsTower() {
+      if (!window.Matter) {
+        statusLine.textContent = "Matter.js unavailable · Check internet connection";
+        return false;
+      }
+      const { Engine, Bodies, Body, Composite, Constraint } = window.Matter;
+      clearJointStressIndicators();
+      physicsEngine = Engine.create();
+      physicsEngine.gravity.y = gravityAcceleration() / 32.2;
+      physicsEngine.gravity.scale = 0.001;
+      physicsBodies = [];
+
+      const tableTop = getTableBoundary();
+      const tableRect = shakeTable.getBoundingClientRect();
+      const canvasRect = canvas.getBoundingClientRect();
+      tableBaseLeft = parseFloat(shakeTable.style.left) || snap((canvas.clientWidth - shakeTable.offsetWidth) / 2);
+      physicsTableBody = Bodies.rectangle(
+        tableBaseLeft + shakeTable.offsetWidth / 2,
+        tableTop + shakeTable.offsetHeight / 2,
+        shakeTable.offsetWidth,
+        shakeTable.offsetHeight,
+        {
+          isStatic: true,
+          friction: 0.8,
+          restitution: 0.05,
+          collisionFilter: { category: COLLISION_CATEGORY_TABLE, mask: 0xFFFFFFFF }
+        }
+      );
+      Composite.add(physicsEngine.world, physicsTableBody);
+
+      const endpointBodies = new Map();
+      designLayer.querySelectorAll(".placed-element").forEach((element) => {
+        const type = element.dataset.tool;
+        if (type !== "Column" && type !== "Beam" && type !== "Brace" && type !== "Floor mass") return;
+        if (type === "Brace") return;
+
+        let body = null;
+        if (type === "Floor mass") {
+          const rect = element.getBoundingClientRect();
+          const layerRect = designLayer.getBoundingClientRect();
+          const width = rect.width;
+          const height = rect.height;
+          const cx = rect.left - layerRect.left + width / 2;
+          const cy = rect.top - layerRect.top + height / 2;
+          body = Bodies.rectangle(cx, cy, width, height, {
+            restitution: 0.1,
+            friction: 0.7,
+            density: 0.002,
+            collisionFilter: { category: COLLISION_CATEGORY_MASS, mask: 0xFFFFFFFF }
+          });
+        } else {
+          const startX = Number(element.dataset.startX);
+          const startY = Number(element.dataset.startY);
+          const endX = Number(element.dataset.endX);
+          const endY = Number(element.dataset.endY);
+          const cx = (startX + endX) / 2;
+          const cy = (startY + endY) / 2;
+          let width;
+          let height;
+          let angle = 0;
+          if (type === "Column") {
+            width = 10;
+            height = Math.hypot(endX - startX, endY - startY);
+          } else if (type === "Beam") {
+            width = Math.hypot(endX - startX, endY - startY);
+            height = 10;
+          } else {
+            width = Math.hypot(endX - startX, endY - startY);
+            height = 10;
+            angle = Math.atan2(endY - startY, endX - startX);
+          }
+          body = Bodies.rectangle(cx, cy, width, height, {
+            restitution: 0.05,
+            friction: 0.9,
+            density: type === "Floor mass" ? 0.002 : 0.001,
+            angle,
+            collisionFilter: type === "Floor mass"
+              ? { category: COLLISION_CATEGORY_MASS, mask: 0xFFFFFFFF }
+              : { category: COLLISION_CATEGORY_STRUCTURE, mask: COLLISION_CATEGORY_MASS }
+          });
+        }
+
+        if (!body) return;
+        body.element = element;
+        body.initialPosition = { x: body.position.x, y: body.position.y };
+        body.initialAngle = body.angle;
+        body.initialStartOffset = {
+          x: Number(element.dataset.startX) - body.position.x,
+          y: Number(element.dataset.startY) - body.position.y
+        };
+        body.initialEndOffset = {
+          x: Number(element.dataset.endX) - body.position.x,
+          y: Number(element.dataset.endY) - body.position.y
+        };
+        physicsBodies.push(body);
+
+        if (type !== "Floor mass") {
+          const start = { x: Number(element.dataset.startX), y: Number(element.dataset.startY) };
+          const end = { x: Number(element.dataset.endX), y: Number(element.dataset.endY) };
+          const addMemberNode = (node, massShare) => {
+            if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) return;
+            const key = snap(node.x) + "," + snap(node.y);
+            if (!endpointBodies.has(key)) endpointBodies.set(key, []);
+            endpointBodies.get(key).push({
+              body,
+              node,
+              massShare,
+              offset: { x: node.x - body.initialPosition.x, y: node.y - body.initialPosition.y }
+            });
+          };
+          if (type === "Brace") {
+            addMemberNode(start, body.mass / 2);
+            addMemberNode(end, body.mass / 2);
+          } else {
+            const length = Math.hypot(end.x - start.x, end.y - start.y);
+            const steps = Math.max(1, Math.round(length / GRID));
+            for (let step = 0; step <= steps; step++) {
+              const t = step / steps;
+              const node = {
+                x: snap(start.x + (end.x - start.x) * t),
+                y: snap(start.y + (end.y - start.y) * t)
+              };
+              const isEnd = step === 0 || step === steps;
+              addMemberNode(node, body.mass * (isEnd ? 0.5 : 1) / steps);
+            }
+          }
+        }
+      });
+
+      endpointBodies.forEach((entries, key) => {
+        const [nodeX, nodeY] = key.split(",").map(Number);
+        const group = {
+          key,
+          x: nodeX,
+          y: nodeY,
+          connectionType: momentJointKeys.has(key) ? "moment" : "pinned",
+          entries,
+          constraints: [],
+          memberLinks: [],
+          matterMass: entries.reduce((sum, entry) => sum + entry.massShare, 0),
+          forceKip: 0,
+          failed: false,
+          indicators: new Map()
+        };
+        jointGroups.push(group);
+        jointGroupByKey.set(key, group);
+        entries.forEach((entry, index) => {
+          entries.slice(index + 1).forEach((other) => {
+            const constraint = Constraint.create({
+              bodyA: entry.body,
+              pointA: worldPointToBodyLocal(entry.body, entry.node),
+              bodyB: other.body,
+              pointB: worldPointToBodyLocal(other.body, other.node),
+              stiffness: 1,
+              damping: 0.5,
+              length: 0
+            });
+            Composite.add(physicsEngine.world, constraint);
+            group.constraints.push(constraint);
+            group.memberLinks.push({ a: entry, b: other, constraint, active: true });
+            if (group.connectionType === "moment") {
+              addMomentRotationLock(group, entry.body, other.body, { x: nodeX, y: nodeY });
+            }
+          });
+        });
+        if (nodeY >= getTableBoundary() - 1) {
+          const baseEntries = entries.filter((entry) => {
+            const element = entry.body.element;
+            return (Number(element.dataset.startX) === nodeX && Number(element.dataset.startY) === nodeY) ||
+              (Number(element.dataset.endX) === nodeX && Number(element.dataset.endY) === nodeY);
+          });
+          baseEntries.forEach((baseEntry) => {
+            const constraint = Constraint.create({
+              bodyA: physicsTableBody,
+              pointA: worldPointToBodyLocal(physicsTableBody, { x: nodeX, y: nodeY }),
+              bodyB: baseEntry.body,
+              pointB: worldPointToBodyLocal(baseEntry.body, { x: nodeX, y: nodeY }),
+              stiffness: 1,
+              damping: 0.5,
+              length: 0
+            });
+            Composite.add(physicsEngine.world, constraint);
+            group.constraints.push(constraint);
+            if (group.connectionType === "moment") {
+              addMomentRotationLock(group, physicsTableBody, baseEntry.body, { x: nodeX, y: nodeY });
+            }
+          });
+        }
+      });
+
+      designLayer.querySelectorAll(".placed-element.brace").forEach((brace) => {
+        const startKey = snap(Number(brace.dataset.startX)) + "," + snap(Number(brace.dataset.startY));
+        const endKey = snap(Number(brace.dataset.endX)) + "," + snap(Number(brace.dataset.endY));
+        const startGroup = jointGroupByKey.get(startKey);
+        const endGroup = jointGroupByKey.get(endKey);
+        const startEntry = startGroup?.entries.find((entry) => entry.body.element?.dataset.tool !== "Floor mass");
+        const endEntry = endGroup?.entries.find((entry) => entry.body.element?.dataset.tool !== "Floor mass");
+        if (!startEntry || !endEntry || startEntry.body === endEntry.body) return;
+        const startPoint = { x: Number(brace.dataset.startX), y: Number(brace.dataset.startY) };
+        const endPoint = { x: Number(brace.dataset.endX), y: Number(brace.dataset.endY) };
+        const length = Math.hypot(
+          endPoint.x - startPoint.x,
+          endPoint.y - startPoint.y
+        );
+        const constraint = Constraint.create({
+          bodyA: startEntry.body,
+          pointA: worldPointToBodyLocal(startEntry.body, startPoint),
+          bodyB: endEntry.body,
+          pointB: worldPointToBodyLocal(endEntry.body, endPoint),
+          stiffness: 1,
+          damping: 0.5,
+          length
+        });
+        Composite.add(physicsEngine.world, constraint);
+        startGroup.constraints.push(constraint);
+        if (endGroup !== startGroup) endGroup.constraints.push(constraint);
+
+        const makeBraceEndEntry = (hostEntry, point) => ({
+          body: hostEntry.body,
+          node: point,
+          offset: {
+            x: point.x - hostEntry.body.initialPosition.x,
+            y: point.y - hostEntry.body.initialPosition.y
+          },
+          massShare: 0,
+          brace
+        });
+        const startBraceEntry = makeBraceEndEntry(startEntry, startPoint);
+        const endBraceEntry = makeBraceEndEntry(endEntry, endPoint);
+        startGroup.entries.push(startBraceEntry);
+        endGroup.entries.push(endBraceEntry);
+        startGroup.memberLinks.push({ a: startEntry, b: startBraceEntry, constraint, active: true });
+        endGroup.memberLinks.push({ a: endEntry, b: endBraceEntry, constraint, active: true });
+
+        if (startGroup.connectionType === "moment") {
+          const rotationLock = addBraceRotationLock(startGroup, startEntry, endEntry, startPoint, endPoint);
+          if (endGroup !== startGroup) endGroup.constraints.push(rotationLock);
+        }
+        if (endGroup.connectionType === "moment") {
+          const rotationLock = addBraceRotationLock(endGroup, endEntry, startEntry, endPoint, startPoint);
+          if (startGroup !== endGroup) startGroup.constraints.push(rotationLock);
+        }
+      });
+
+      Composite.add(physicsEngine.world, physicsBodies.map((body) => body));
+      const beamBodies = physicsBodies.filter((body) => body.element?.dataset.tool === "Beam");
+      const massBodies = physicsBodies.filter((body) => body.element?.dataset.tool === "Floor mass");
+      massBodies.forEach((massBody) => {
+        const massCenterX = massBody.position.x;
+        const massCenterY = massBody.position.y;
+        let nearestBeam = null;
+        let nearestDistance = Infinity;
+        const massBottomY = massBody.bounds.max.y;
+        const massLeftX = massBody.bounds.min.x;
+        const massRightX = massBody.bounds.max.x;
+        beamBodies.forEach((beamBody) => {
+          const beamElement = beamBody.element;
+          const beamY = (Number(beamElement.dataset.startY) + Number(beamElement.dataset.endY)) / 2;
+          const startX = Number(beamElement.dataset.startX);
+          const endX = Number(beamElement.dataset.endX);
+          const beamLeft = Math.min(startX, endX);
+          const beamRight = Math.max(startX, endX);
+          const supportedVertically = Math.abs(massBottomY - beamY) <= 12;
+          const bothMassCornersOverBeam = massLeftX >= beamLeft - 1 && massRightX <= beamRight + 1;
+          if (supportedVertically && bothMassCornersOverBeam &&
+              massCenterX >= beamLeft - 10 && massCenterX <= beamRight + 10) {
+            const distance = Math.abs(massCenterY - beamY);
+            if (distance < nearestDistance) {
+              nearestDistance = distance;
+              nearestBeam = beamBody;
+            }
+          }
+        });
+        if (!nearestBeam) return;
+        massBody.hasBeamSupport = true;
+        massBody.collisionFilter.mask = COLLISION_CATEGORY_MASS | COLLISION_CATEGORY_TABLE;
+        const beamElement = nearestBeam.element;
+        const beamY = (Number(beamElement.dataset.startY) + Number(beamElement.dataset.endY)) / 2;
+        [
+          { x: massLeftX, y: massBottomY },
+          { x: massRightX, y: massBottomY }
+        ].forEach((node) => {
+          const group = jointGroupByKey.get(snap(node.x) + "," + snap(beamY));
+          if (group) group.matterMass += massBody.mass / 2;
+          const constraint = Constraint.create({
+            bodyA: nearestBeam,
+            pointA: worldPointToBodyLocal(nearestBeam, node),
+            bodyB: massBody,
+            pointB: worldPointToBodyLocal(massBody, node),
+            stiffness: 0.8,
+            damping: 0.35,
+            length: 0
+          });
+          Composite.add(physicsEngine.world, constraint);
+          if (group) group.constraints.push(constraint);
+        });
+      });
+      return true;
+    }
+
+    function updateGroupStressIndicator(group, state, forceKip) {
+      const roots = new Map(group.entries.map((entry) => [entry, entry]));
+      const findRoot = (entry) => {
+        let root = entry;
+        while (roots.get(root) !== root) root = roots.get(root);
+        let current = entry;
+        while (roots.get(current) !== root) {
+          const next = roots.get(current);
+          roots.set(current, root);
+          current = next;
+        }
+        return root;
+      };
+      group.memberLinks.forEach((link) => {
+        if (!link.active) return;
+        const rootA = findRoot(link.a);
+        const rootB = findRoot(link.b);
+        if (rootA !== rootB) roots.set(rootB, rootA);
+      });
+
+      const components = new Map();
+      group.entries.forEach((entry) => {
+        const root = findRoot(entry);
+        if (!components.has(root)) components.set(root, []);
+        components.get(root).push(entry);
+      });
+      const visibleKeys = new Set();
+      components.forEach((entries) => {
+        if (entries.length < 2) return;
+        const key = entries.map((entry) => group.entries.indexOf(entry)).sort((a, b) => a - b).join(",");
+        visibleKeys.add(key);
+        let indicator = group.indicators.get(key);
+        if (!indicator) {
+          indicator = document.createElement("div");
+          group.indicators.set(key, indicator);
+          designLayer.appendChild(indicator);
+        }
+        const points = entries.map((entry) => {
+          const rotation = entry.body.angle - entry.body.initialAngle;
+          const cosine = Math.cos(rotation);
+          const sine = Math.sin(rotation);
+          return {
+            x: entry.body.position.x + entry.offset.x * cosine - entry.offset.y * sine,
+            y: entry.body.position.y + entry.offset.x * sine + entry.offset.y * cosine
+          };
+        });
+        indicator.style.left = (points.reduce((sum, point) => sum + point.x, 0) / points.length) + "px";
+        indicator.style.top = (points.reduce((sum, point) => sum + point.y, 0) / points.length) + "px";
+        indicator.className = "joint-stress-indicator " + state +
+          (group.connectionType === "moment" ? " moment" : "");
+        indicator.setAttribute(
+          "aria-label",
+          (group.connectionType === "moment" ? "Moment-frame" : "Pinned") +
+            " joint stress: " + state + " · " + forceKip.toFixed(1) + " kip"
+        );
+      });
+      group.indicators.forEach((indicator, key) => {
+        if (!visibleKeys.has(key)) {
+          indicator.remove();
+          group.indicators.delete(key);
+        }
+      });
+    }
+
+    function updateJointStressStates(tableAccelerationFt) {
+      let failedGroup = null;
+      const resultantAcceleration = Math.hypot(gravityAcceleration(), tableAccelerationFt);
+      jointGroups.forEach((group) => {
+        const forceKip = group.constraints.length
+          ? group.matterMass * MATTER_MASS_TO_KIP_S2_PER_FT * resultantAcceleration
+          : group.forceKip;
+        group.forceKip = forceKip;
+        const becameFailed = !group.failed && forceKip > FAILED_JOINT_FORCE_KIP;
+        const state = group.failed || becameFailed
+          ? "failed"
+          : (forceKip >= ELEVATED_JOINT_FORCE_KIP ? "elevated" : "normal");
+
+        updateGroupStressIndicator(group, state, forceKip);
+
+        if (becameFailed) {
+          group.failed = true;
+          group.constraints.forEach((constraint) => {
+            window.Matter.Composite.remove(physicsEngine.world, constraint, true);
+            jointGroups.forEach((linkedGroup) => {
+              linkedGroup.memberLinks.forEach((link) => {
+                if (link.constraint === constraint) link.active = false;
+              });
+            });
+          });
+          group.memberLinks.forEach((link) => { link.active = false; });
+          if (!failedGroup) failedGroup = group;
+        }
+      });
+      return failedGroup;
+    }
+
+    function syncPhysicsElements() {
+      const structuralBodies = physicsBodies.filter((body) =>
+        body.element?.dataset.tool === "Column" ||
+        body.element?.dataset.tool === "Beam"
+      );
+      const getWorldNode = (nodeX, nodeY) => {
+        const matches = [];
+        structuralBodies.forEach((body) => {
+          const element = body.element;
+          const startX = Number(element.dataset.startX);
+          const startY = Number(element.dataset.startY);
+          const endX = Number(element.dataset.endX);
+          const endY = Number(element.dataset.endY);
+          const addTransformedPoint = (offset) => {
+            const rotation = body.angle - body.initialAngle;
+            const cosine = Math.cos(rotation);
+            const sine = Math.sin(rotation);
+            matches.push({
+              x: body.position.x + offset.x * cosine - offset.y * sine,
+              y: body.position.y + offset.x * sine + offset.y * cosine
+            });
+          };
+          if (startX === nodeX && startY === nodeY) {
+            addTransformedPoint(body.initialStartOffset);
+          }
+          if (endX === nodeX && endY === nodeY) {
+            addTransformedPoint(body.initialEndOffset);
+          }
+          if (!(startX === nodeX && startY === nodeY) && !(endX === nodeX && endY === nodeY)) {
+            const dx = endX - startX;
+            const dy = endY - startY;
+            const lengthSquared = dx * dx + dy * dy;
+            if (lengthSquared === 0) return;
+            const t = ((nodeX - startX) * dx + (nodeY - startY) * dy) / lengthSquared;
+            if (t <= 0 || t >= 1) return;
+            const projectedX = startX + t * dx;
+            const projectedY = startY + t * dy;
+            if (Math.hypot(projectedX - nodeX, projectedY - nodeY) <= 1) {
+              addTransformedPoint({
+                x: nodeX - body.initialPosition.x,
+                y: nodeY - body.initialPosition.y
+              });
+            }
+          }
+        });
+        if (!matches.length) return { x: nodeX, y: nodeY };
+        return {
+          x: matches.reduce((sum, point) => sum + point.x, 0) / matches.length,
+          y: matches.reduce((sum, point) => sum + point.y, 0) / matches.length
+        };
+      };
+
+      designLayer.querySelectorAll(".placed-element.brace").forEach((brace) => {
+        const braceBody = physicsBodies.find((body) => body.element === brace);
+        const getBraceNode = (x, y, endpoint) => {
+          const joint = jointGroupByKey.get(snap(x) + "," + snap(y));
+          const hasStructuralSupport = joint?.entries.some((entry) =>
+            entry.body.element?.dataset.tool === "Column" || entry.body.element?.dataset.tool === "Beam"
+          );
+          if ((!hasStructuralSupport || joint?.failed) && braceBody) {
+            const offset = endpoint === "start"
+              ? braceBody.initialStartOffset
+              : braceBody.initialEndOffset;
+            const rotation = braceBody.angle - braceBody.initialAngle;
+            const cosine = Math.cos(rotation);
+            const sine = Math.sin(rotation);
+            return {
+              x: braceBody.position.x + offset.x * cosine - offset.y * sine,
+              y: braceBody.position.y + offset.x * sine + offset.y * cosine
+            };
+          }
+          return getWorldNode(x, y);
+        };
+        const start = getBraceNode(
+          Number(brace.dataset.startX),
+          Number(brace.dataset.startY),
+          "start"
+        );
+        const end = getBraceNode(
+          Number(brace.dataset.endX),
+          Number(brace.dataset.endY),
+          "end"
+        );
+        const liveLength = Math.hypot(end.x - start.x, end.y - start.y);
+        const liveAngle = Math.atan2(end.y - start.y, end.x - start.x);
+        const angle = liveAngle * 180 / Math.PI;
+        brace.style.left = start.x + "px";
+        brace.style.top = (start.y - 5) + "px";
+        brace.style.width = liveLength + "px";
+        brace.style.height = "10px";
+        brace.style.transform = "rotate(" + angle + "deg)";
+        brace.style.transformOrigin = "0 50%";
+        keepBraceLabelUpright(brace, angle);
+        const label = brace.querySelector(".segment-length");
+        if (label) label.textContent = (liveLength / GRID).toFixed(1) + " ft";
+        const startHandle = brace.querySelector(".endpoint.start");
+        const endHandle = brace.querySelector(".endpoint.end");
+        if (startHandle) { startHandle.style.left = "-7px"; startHandle.style.top = "-2px"; }
+        if (endHandle) { endHandle.style.left = (liveLength - 7) + "px"; endHandle.style.top = "-2px"; }
+      });
+
+      physicsBodies.forEach((body) => {
+        const element = body.element;
+        if (!element) return;
+        if (element.dataset.tool === "Beam") {
+          element.style.left = (body.position.x - element.offsetWidth / 2) + "px";
+          element.style.top = (body.position.y - element.offsetHeight / 2) + "px";
+          element.style.transform = "rotate(" + body.angle * 180 / Math.PI + "deg)";
+        } else if (element.dataset.tool === "Column") {
+          element.style.left = (body.position.x - element.offsetWidth / 2) + "px";
+          element.style.top = (body.position.y - element.offsetHeight / 2) + "px";
+          element.style.transform = "rotate(" + body.angle * 180 / Math.PI + "deg)";
+        } else if (element.dataset.tool === "Floor mass") {
+          element.style.left = (body.position.x - element.offsetWidth / 2) + "px";
+          element.style.top = (body.position.y - element.offsetHeight / 2) + "px";
+          element.style.transform = "rotate(" + body.angle * 180 / Math.PI + "deg)";
+        }
+      });
+    }
+
+    function finishTest(resultText) {
+      testFinished = true;
+      document.getElementById("elapsedValue").textContent = testElapsed.toFixed(2) + " s";
+      document.getElementById("peakAccelValue").textContent = testPeakAcceleration.toFixed(2) + " g";
+      const startButton = document.getElementById("startBtn");
+      const passed = resultText.startsWith("Test passed");
+      if (passed) recordHighScore(testPeakAcceleration);
+      startButton.textContent = passed ? "Test passed" : "Test failed";
+      startButton.classList.remove("result-success", "result-failure");
+      startButton.classList.add(passed ? "result-success" : "result-failure");
+      startButton.disabled = true;
+      document.getElementById("stopBtn").disabled = false;
+      document.querySelector(".canvas-label").textContent = "1 ft grid · Test result";
+      statusLine.textContent = resultText;
+      statusLine.classList.remove("result-success", "result-failure");
+      statusLine.classList.add(passed ? "result-success" : "result-failure");
+    }
+
+    function setTesting(testing) {
+      isTesting = testing;
+      if (testing) {
+        testFinished = false;
+        cancelPendingSegment();
+        removePlacementGhost();
+        physicsSnapshots = [...designLayer.querySelectorAll(".placed-element")].map((element) => ({
+          element,
+          left: element.style.left,
+          top: element.style.top,
+          width: element.style.width,
+          height: element.style.height,
+          transform: element.style.transform,
+          transformOrigin: element.style.transformOrigin
+        }));
+        if (buildPhysicsTower()) {
+          testStartedAt = performance.now();
+          testElapsed = 0;
+          testPeakAcceleration = 0;
+          document.getElementById("elapsedValue").textContent = "0.00 s";
+          document.getElementById("peakAccelValue").textContent = "0.00 g";
+
+          let physicsElapsed = 0;
+          let physicsAccumulator = 0;
+          let lastFrameAt = testStartedAt;
+          const physicsStepMs = 1000 / 60;
+          physicsAnimation = (now) => {
+            if (!isTesting) return;
+            physicsAccumulator += Math.max(0, now - lastFrameAt);
+            lastFrameAt = now;
+            while (physicsAccumulator >= physicsStepMs) {
+              physicsAccumulator -= physicsStepMs;
+              physicsElapsed += physicsStepMs / 1000;
+
+              const amplitude = Number(document.getElementById("amplitudeNumber").value);
+              const frequency = Number(document.getElementById("frequencyNumber").value);
+              const omega = 2 * Math.PI * frequency;
+              const displacementPx = amplitude * 20 / 12 * Math.sin(omega * physicsElapsed);
+              const displacementFt = displacementPx / 20;
+              const signedAccelerationFt = omega * omega * displacementFt;
+              const peakAccelerationG = (amplitude / 12) * omega * omega / STANDARD_GRAVITY_FTPS2;
+              if (!testFinished) {
+                testElapsed = physicsElapsed;
+                testPeakAcceleration = Math.max(testPeakAcceleration, peakAccelerationG);
+              }
+
+              Matter.Body.setPosition(physicsTableBody, {
+                x: tableBaseLeft + shakeTable.offsetWidth / 2 + displacementPx,
+                y: physicsTableBody.position.y
+              }, true);
+              shakeTable.style.left = (tableBaseLeft + displacementPx) + "px";
+
+              Matter.Engine.update(physicsEngine, physicsStepMs);
+              const failedJoint = updateJointStressStates(signedAccelerationFt);
+              const groundPlane = getTableBoundary();
+              const collided = physicsBodies.some((body) =>
+                body.element?.dataset.tool === "Floor mass" &&
+                body.bounds.max.y >= groundPlane - 4
+              );
+              if (collided && !testFinished) {
+                finishTest("Test failed · Floor mass reached ground at " + testElapsed.toFixed(2) + " s");
+              }
+              if (failedJoint && !testFinished) {
+                statusLine.textContent = "Joint at (" + failedJoint.x + ", " + failedJoint.y + ") exceeded 15 kip; collapse continues until a mass reaches the ground";
+              }
+              if (physicsElapsed >= 10 && !testFinished) {
+                testElapsed = 10;
+                finishTest("Test passed · Survived 10.00 s");
+              }
+            }
+
+            syncPhysicsElements();
+            document.getElementById("elapsedValue").textContent = testElapsed.toFixed(2) + " s";
+            document.getElementById("peakAccelValue").textContent = testPeakAcceleration.toFixed(2) + " g";
+            physicsAnimationId = requestAnimationFrame(physicsAnimation);
+          };
+          physicsAnimationId = requestAnimationFrame(physicsAnimation);
+        } else {
+          isTesting = false;
+          physicsSnapshots = [];
+        }
+      } else {
+        testFinished = false;
+        if (physicsAnimationId) cancelAnimationFrame(physicsAnimationId);
+        physicsAnimationId = null;
+        shakeTable.style.left = tableBaseLeft ? tableBaseLeft + "px" : shakeTable.style.left;
+        physicsSnapshots.forEach((snapshot) => {
+          snapshot.element.style.left = snapshot.left;
+          snapshot.element.style.top = snapshot.top;
+          snapshot.element.style.width = snapshot.width;
+          snapshot.element.style.height = snapshot.height;
+          snapshot.element.style.transform = snapshot.transform;
+          snapshot.element.style.transformOrigin = snapshot.transformOrigin;
+          if (snapshot.element.dataset.tool === "Brace") {
+            const startX = Number(snapshot.element.dataset.startX);
+            const startY = Number(snapshot.element.dataset.startY);
+            const endX = Number(snapshot.element.dataset.endX);
+            const endY = Number(snapshot.element.dataset.endY);
+            const length = Math.hypot(endX - startX, endY - startY);
+            const angle = Math.atan2(endY - startY, endX - startX) * 180 / Math.PI;
+            snapshot.element.style.left = startX + "px";
+            snapshot.element.style.top = (startY - 5) + "px";
+            snapshot.element.style.width = length + "px";
+            snapshot.element.style.height = "10px";
+            snapshot.element.style.transform = "rotate(" + angle + "deg)";
+            snapshot.element.style.transformOrigin = "0 50%";
+            keepBraceLabelUpright(snapshot.element, angle);
+          }
+          alignEndpointHandles(snapshot.element);
+        });
+        physicsSnapshots = [];
+        clearJointStressIndicators();
+      }
+      const testIsActive = isTesting;
+      const startupFailed = testing && !testIsActive;
+      document.querySelectorAll(".tool").forEach((tool) => { tool.disabled = testIsActive; });
+      document.querySelectorAll(".gravity-btn").forEach((button) => { button.disabled = testIsActive; });
+      document.getElementById("starterBtn").disabled = testIsActive;
+      document.getElementById("clearBtn").disabled = testIsActive;
+      const startButton = document.getElementById("startBtn");
+      startButton.textContent = testIsActive ? "Test in progress" : "Start test";
+      startButton.classList.remove("result-success", "result-failure");
+      startButton.disabled = testIsActive;
+      statusLine.classList.remove("result-success", "result-failure");
+      document.getElementById("stopBtn").disabled = !testIsActive;
+      renderJointEditMarkers();
+      document.querySelector(".canvas-label").textContent = testIsActive
+        ? "1 ft grid · Test mode"
+        : "1 ft grid · Design mode";
+      if (testIsActive) {
+        selectElement(null);
+        statusLine.textContent = "Test in progress";
+      } else if (!startupFailed) {
+        statusLine.textContent = "Test stopped · " + testElapsed.toFixed(2) + " s";
+      }
+    }
+
+    document.getElementById("startBtn").addEventListener("click", () => setTesting(!isTesting));
+    document.getElementById("stopBtn").addEventListener("click", () => {
+      setTesting(false);
+    });
+
+    document.getElementById("starterBtn").addEventListener("click", loadStarter);
+    document.getElementById("clearBtn").addEventListener("click", clearStructure);
+    loadStarter();
+  </script>
+</body>
+</html>

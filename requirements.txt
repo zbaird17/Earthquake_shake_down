@@ -1,3 +1,0 @@
-numpy>=2.0
-matplotlib>=3.9
-pymunk>=6.8
