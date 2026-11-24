@@ -96,7 +96,7 @@ The shake table occupies the bottom of the canvas and is aligned exactly with th
 The interface provides clear active, disabled, hover, and failure states. When a test ends, both the Start test result button and the status panel below the readouts are green for a pass and red for a failure, with readable white text. Do not show a ground-motion trace; the table motion is always the configured sine wave.
 
 ## Validation
-Free-Fall Calibration Test (external validation only): release a test mass from rest 10 ft above the ground and record the time until it reaches the ground plane. The app does not include a calibration drop control or temporary calibration mass. Compare the measured time with the expected result within ±1%; maintain test cases and expected results in `02_validation/calibration_test_cases.md`. The selected gravity mode determines the expected time:
+Free-Fall Calibration Test (external validation only): release a test mass from rest 10 ft above the ground and record the time until it reaches the ground plane. Compare the measured time with the expected result within ±1%; maintain test cases and expected results in `02_validation/calibration_test_cases.md`. The selected gravity mode determines the expected time derived from d = a /2 * t^2 :
 - Earth at 32.2 ft/s²: 0.78811 seconds
 - Mars at 12.21 ft/s²: 1.2798 seconds
 - Moon at 5.33 ft/s²: 1.9371 seconds
