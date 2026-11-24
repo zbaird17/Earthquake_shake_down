@@ -232,5 +232,6 @@
 - Confirmed the earlier web app's `index.html` is present in history at `58b0776`, and was deleted at `c3a7b1c`.
 - Confirmed `Earthquake_shake_down` should contain the web app. Both `earthquake_desktop` and `Earthquake_shake_down` were local Git clones pointing to the same GitHub remote and commit.
 - Restored the web-app tree from commit `58b0776` in `Earthquake_shake_down`, including `index.html` and the matching `spec.md`; removed the desktop app files from this working copy. Desktop files remain in Git history and in the `earthquake_desktop` folder.
-- Verified `index.html` is present and `git diff --check` passes. Nothing has been committed or pushed yet.
+- Verified `index.html` is present and `git diff --check` passes before publication.
 - Asked to publish the restored web app to the GitHub repository `Earthquake_shake_down`; the configured `origin` is `zbaird17/Earthquake_shake_down`.
+- Published successfully: commit `1033d7a` pushed to `origin/master`, restoring the web-app version in the GitHub repository.
