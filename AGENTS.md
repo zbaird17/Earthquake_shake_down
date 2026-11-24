@@ -1,5 +1,5 @@
 # AGENTS.md
-- Always update prompts.md after each request with what I asked, what you changed, and whether it worked.
+- Always update prompts.md after each request, appending to the end with what I asked, what you changed, and whether it worked.
 - Before changing application code for a spec-based feature, first update spec.md to reflect the agreed behavior. Do not implement spec changes and app changes in the same turn unless the app change is purely verification or correction of that already-updated spec.
 - Do not commit feature or build work unless it has been finalized and explicitly approved by the user.
 - Do not commit a numbered Stage until the user approves moving on to the next.
